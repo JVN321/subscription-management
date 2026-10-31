@@ -42,38 +42,91 @@ Every scene from [`Subscription_Management_System.pdf`](docs/resources/Subscript
 
 ## 3. System Architecture & Topology
 
+```mermaid
+flowchart TD
+    subgraph ClientLayer ["Client Layer (:3000)"]
+        ADMIN["Admin Console (Plans, Catalogs, Staff)"]
+        STAFF["Staff Console (Quotes, Invoices, Billing)"]
+        PORTAL["Customer Portal (Self-Service, Payments, PDFs)"]
+    end
+
+    subgraph ApiLayer ["Backend API Service - apps/api (:3001)"]
+        ROUTER["Hono REST & OpenAPI Router"]
+        AUTH["Better Auth Engine (/api/auth/*)"]
+        SCHED["Recurring Billing Engine (pg_try_advisory_xact_lock)"]
+        PDF["PDFKit Vector Invoice Generator"]
+    end
+
+    subgraph DomainLayer ["Domain Core - packages/"]
+        DOMAIN["@repo/domain (Decimal.js Math, Invariants, Intervals)"]
+        DB["@repo/db (Drizzle ORM, 16 Relational Tables)"]
+    end
+
+    subgraph DataLayer ["Persistence Infrastructure"]
+        POSTGRES[("PostgreSQL 16 (:5433 host / :5432 container)")]
+        REDIS[("Redis 7 (:6379 host)")]
+    end
+
+    ADMIN -->|HTTP REST| ROUTER
+    STAFF -->|HTTP REST| ROUTER
+    PORTAL -->|HTTP REST| ROUTER
+
+    ROUTER --> AUTH
+    ROUTER --> SCHED
+    ROUTER --> PDF
+    ROUTER --> DOMAIN
+    SCHED --> DOMAIN
+    DOMAIN --> DB
+    DB --> POSTGRES
+    ROUTER --> REDIS
 ```
-+-------------------------------------------------------------------------+
-|                              CLIENT LAYER                               |
-|   Web Console (Admin / Staff / Customer Portal) - React & Vite (:3000)  |
-+-------------------------------------------------------------------------+
-                                    |
-                            HTTP REST / OpenAPI
-                                    v
-+-------------------------------------------------------------------------+
-|                         BACKEND API (apps/api) :3001                    |
-|   - Hono HTTP Framework & OpenAPI Routing                               |
-|   - Better Auth Engine (Native /api/auth/* Session Handlers)            |
-|   - In-Process Billing Scheduler with PostgreSQL Advisory Locks         |
-|   - PDFKit Vector Invoice Document Streamer                             |
-+-------------------------------------------------------------------------+
-                                    |
-                    +---------------+---------------+
-                    |                               |
-                    v                               v
-+-----------------------+       +-----------------------------------------+
-|   @repo/domain        |       |   @repo/db                              |
-|   - Decimal.js Math   |       |   - Drizzle ORM Relational Schemas      |
-|   - Pricing Engines   |       |   - 16 Relational Financial Tables      |
-|   - Interval Advances |       |   - Strict Composite Unique Constraints |
-+-----------------------+       +-----------------------------------------+
-                                                    |
-                                                    v
-                                    +-------------------------------+
-                                    |   PERSISTENCE INFRASTRUCTURE  |
-                                    |   - PostgreSQL 16 (:5433 / :5432) |
-                                    |   - Redis 7 (:6379)               |
-                                    +-------------------------------+
+
+### End-to-End Billing Lifecycle & Data Flow
+
+```mermaid
+flowchart LR
+    subgraph S1 ["Scene 1 & 2: Provisioning & Catalog"]
+        ACC["Customer Account (Strict Password Validation)"]
+        CAT["Catalog & Variants (Odoo Brand +560.00)"]
+        PLAN["Subscription Plans (Daily/Weekly/Monthly/Yearly)"]
+    end
+
+    subgraph S3 ["Scene 3: Quotations"]
+        QUOTE["Quotation Template & Validity Days"]
+        CONVERT{"1-Click Accept"}
+        SUB["Active Subscription (Unique Sub ID)"]
+    end
+
+    subgraph S45 ["Scene 4 & 5: Billing & Discounts"]
+        SCAN["Periodic Billing Scan (Advisory Lock Safe)"]
+        DISC["Auto-Apply Discounts & Tax Rules"]
+        INV["Generated Invoice (Draft -> Confirmed)"]
+        PDF["PDFKit Vector Invoice (%PDF-)"]
+    end
+
+    subgraph S67 ["Scene 6 & 7: Payments & Telemetry"]
+        PAY["Multi-Method Payment (Card/Wire/Cash)"]
+        SETTLE{"Balance = 0?"}
+        PAID["Invoice Status: PAID"]
+        OVERDUE["Overdue Tracking Queue"]
+        DASH["Finance Lead Dashboard (<10ms Queries)"]
+    end
+
+    ACC --> QUOTE
+    CAT --> QUOTE
+    PLAN --> QUOTE
+    QUOTE --> CONVERT
+    CONVERT --> SUB
+    SUB --> SCAN
+    SCAN --> DISC
+    DISC --> INV
+    INV --> PDF
+    INV --> PAY
+    PAY --> SETTLE
+    SETTLE -->|Yes| PAID
+    SETTLE -->|No / Past Due| OVERDUE
+    PAID --> DASH
+    OVERDUE --> DASH
 ```
 
 ### Monorepo Structure
