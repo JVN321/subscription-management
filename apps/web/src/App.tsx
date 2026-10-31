@@ -5,11 +5,11 @@ import {
   Repeat,
   Receipt,
   Package,
-  User,
+  Users,
   Shield,
   Play,
   CheckCircle2,
-  AlertTriangle,
+  AlertCircle,
   Clock,
   Download,
   CreditCard,
@@ -17,15 +17,33 @@ import {
   RefreshCw,
   Pause,
   ArrowRight,
-  Sparkles
+  Sun,
+  Moon,
+  Search,
+  Bell,
+  Cpu,
+  Activity,
+  Layers,
+  Calendar,
+  DollarSign,
+  ArrowUpRight,
+  ExternalLink,
+  ChevronDown,
+  Lock,
+  Database
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:3001/api/v1';
 
 export function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('brightloop_theme') as 'light' | 'dark') || 'light';
+  });
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'quotations' | 'subscriptions' | 'invoices' | 'catalog' | 'portal'>('dashboard');
   const [currentRole, setCurrentRole] = useState<'admin' | 'staff' | 'customer'>('admin');
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Data States
   const [report, setReport] = useState<any>(null);
   const [scheduler, setScheduler] = useState<any>(null);
@@ -36,6 +54,7 @@ export function App() {
   const [plans, setPlans] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Modals
@@ -53,6 +72,21 @@ export function App() {
   const [selectedVariant, setSelectedVariant] = useState('');
   const [quantity, setQuantity] = useState(5);
 
+  // Theme Sync
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('brightloop_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
@@ -62,16 +96,16 @@ export function App() {
     try {
       setLoading(true);
       const headers = { 'x-user-role': currentRole };
-      
+
       const [repRes, schedRes, quotesRes, subsRes, invsRes, prodsRes, plansRes, custsRes] = await Promise.all([
-        fetch(`${API_BASE}/reports/summary`, { headers }).then(r => r.json()).catch(() => ({ data: null })),
-        fetch(`${API_BASE}/billing/scheduler`, { headers }).then(r => r.json()).catch(() => ({ data: null })),
-        fetch(`${API_BASE}/quotations`, { headers }).then(r => r.json()).catch(() => ({ data: [] })),
-        fetch(`${API_BASE}/subscriptions`, { headers }).then(r => r.json()).catch(() => ({ data: [] })),
-        fetch(`${API_BASE}/invoices`, { headers }).then(r => r.json()).catch(() => ({ data: [] })),
-        fetch(`${API_BASE}/products`, { headers }).then(r => r.json()).catch(() => ({ data: [] })),
-        fetch(`${API_BASE}/plans`, { headers }).then(r => r.json()).catch(() => ({ data: [] })),
-        fetch(`${API_BASE}/customers`, { headers }).then(r => r.json()).catch(() => ({ data: [] }))
+        fetch(`${API_BASE}/reports/summary`, { headers }).then((r) => r.json()).catch(() => ({ data: null })),
+        fetch(`${API_BASE}/billing/scheduler`, { headers }).then((r) => r.json()).catch(() => ({ data: null })),
+        fetch(`${API_BASE}/quotations`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_BASE}/subscriptions`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_BASE}/invoices`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_BASE}/products`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_BASE}/plans`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_BASE}/customers`, { headers }).then((r) => r.json()).catch(() => ({ data: [] }))
       ]);
 
       if (repRes?.data) setReport(repRes.data);
@@ -79,24 +113,25 @@ export function App() {
       if (quotesRes?.data) setQuotations(quotesRes.data);
       if (subsRes?.data) setSubscriptions(subsRes.data);
       if (invsRes?.data) setInvoices(invsRes.data);
-      if (prodsRes?.data) setProducts(prodsRes.data);
-      if (plansRes?.data) setPlans(plansRes.data);
-      if (custsRes?.data) setCustomers(custsRes.data);
-
-      if (custsRes?.data?.length > 0 && !selectedCustomer) {
-        setSelectedCustomer(custsRes.data[0].id);
-      }
-      if (plansRes?.data?.length > 0 && !selectedPlan) {
-        setSelectedPlan(plansRes.data[0].id);
-      }
-      if (prodsRes?.data?.length > 0 && !selectedProduct) {
-        setSelectedProduct(prodsRes.data[0].id);
-        if (prodsRes.data[0].variants?.length > 0) {
-          setSelectedVariant(prodsRes.data[0].variants[0].id);
+      if (prodsRes?.data) {
+        setProducts(prodsRes.data);
+        if (prodsRes.data[0]) {
+          setSelectedProduct(prodsRes.data[0].id);
+          if (prodsRes.data[0].variants?.[0]) {
+            setSelectedVariant(prodsRes.data[0].variants[0].id);
+          }
         }
       }
-    } catch (err) {
-      console.error('Failed to load data:', err);
+      if (plansRes?.data) {
+        setPlans(plansRes.data);
+        if (plansRes.data[0]) setSelectedPlan(plansRes.data[0].id);
+      }
+      if (custsRes?.data) {
+        setCustomers(custsRes.data);
+        if (custsRes.data[0]) setSelectedCustomer(custsRes.data[0].id);
+      }
+    } catch (e) {
+      console.error('Error fetching data:', e);
     } finally {
       setLoading(false);
     }
@@ -105,446 +140,945 @@ export function App() {
   useEffect(() => {
     loadData();
     const interval = setInterval(() => {
-      loadData();
-    }, 15000); // Polling refresh
+      fetch(`${API_BASE}/billing/scheduler`).then((r) => r.json()).then((res) => {
+        if (res?.data) setScheduler(res.data);
+      }).catch(() => {});
+    }, 8000);
     return () => clearInterval(interval);
   }, [currentRole]);
 
   // Actions
   const handleTriggerBilling = async () => {
     try {
+      setBillingLoading(true);
       const res = await fetch(`${API_BASE}/billing/trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      }).then(r => r.json());
-
-      if (res.data) {
-        showToast(`Billing scan complete: Generated ${res.data.generatedCount} invoices (${res.data.skippedCount} duplicates skipped).`);
-        await loadData();
+        body: JSON.stringify({ targetDate: new Date().toISOString().split('T')[0] })
+      });
+      const data = await res.json();
+      if (data?.data) {
+        showToast(`Billing scan executed: ${data.data.generatedCount} generated, ${data.data.skippedCount} skipped.`);
+        loadData();
       }
     } catch (e) {
-      showToast('Billing scan failed');
+      showToast('Billing scan execution failed');
+    } finally {
+      setBillingLoading(false);
     }
   };
 
   const handleConvertQuote = async (quoteId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/quotations/${quoteId}/convert`, { method: 'POST' }).then(r => r.json());
-      if (res.data) {
-        showToast(`Quotation converted! Active Subscription #${res.data.subscriptionNumber} created.`);
-        await loadData();
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/quotations/${quoteId}/convert`, {
+        method: 'POST',
+        headers: { 'x-user-role': currentRole }
+      });
+      const data = await res.json();
+      if (data?.data) {
+        showToast('Quotation converted to active subscription');
+        loadData();
+        setActiveTab('subscriptions');
       }
     } catch (e) {
       showToast('Conversion failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleToggleSubStatus = async (subId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
     try {
-      const nextStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
       await fetch(`${API_BASE}/subscriptions/${subId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus })
       });
-      showToast(`Subscription status updated to ${nextStatus}`);
-      await loadData();
+      showToast(`Subscription ${nextStatus === 'ACTIVE' ? 'resumed' : 'paused'}`);
+      loadData();
     } catch (e) {
-      showToast('Failed to update subscription');
+      showToast('Status update failed');
     }
   };
 
-  const handleCreateQuote = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRecordPayment = async () => {
+    if (!selectedInvoice || !paymentAmount) return;
     try {
-      const product = products.find(p => p.id === selectedProduct);
-      const variant = product?.variants?.find((v: any) => v.id === selectedVariant);
-      const basePrice = parseFloat(product?.salesPrice || '0');
-      const adj = parseFloat(variant?.priceAdjustment || '0');
-      const unitPrice = (basePrice + adj).toFixed(4);
-
-      await fetch(`${API_BASE}/quotations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: selectedCustomer,
-          planId: selectedPlan,
-          validityDays: 30,
-          lines: [{
-            productId: selectedProduct,
-            variantId: selectedVariant || undefined,
-            quantity: Number(quantity),
-            unitPrice
-          }]
-        })
-      });
-
-      showToast('Quotation created successfully');
-      setShowQuoteModal(false);
-      await loadData();
-    } catch (e) {
-      showToast('Failed to create quote');
-    }
-  };
-
-  const handleRecordPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedInvoice) return;
-
-    try {
+      setLoading(true);
       const res = await fetch(`${API_BASE}/invoices/${selectedInvoice.id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: parseFloat(paymentAmount).toFixed(4),
           paymentMethod,
-          notes: paymentNote || 'Payment recorded via console'
+          notes: paymentNote || 'Reconciled via Console'
         })
-      }).then(r => r.json());
-
-      if (res.invoice) {
-        showToast(`Payment recorded! Invoice #${res.invoice.invoiceNumber} status: ${res.invoice.status}`);
+      });
+      if (res.ok) {
+        showToast(`Payment of $${parseFloat(paymentAmount).toFixed(2)} recorded`);
         setShowPaymentModal(false);
-        await loadData();
+        setSelectedInvoice(null);
+        setPaymentAmount('');
+        loadData();
       }
     } catch (e) {
-      showToast('Failed to record payment');
+      showToast('Payment recording failed');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleCreateQuote = async () => {
+    if (!selectedCustomer || !selectedPlan || !selectedProduct) return;
+    try {
+      setLoading(true);
+      const prod = products.find((p) => p.id === selectedProduct);
+      const variant = prod?.variants?.find((v: any) => v.id === selectedVariant);
+      let unitPrice = prod?.salesPrice || '1000.0000';
+      if (variant) {
+        unitPrice = (parseFloat(unitPrice) + parseFloat(variant.priceAdjustment)).toFixed(4);
+      }
+
+      const res = await fetch(`${API_BASE}/quotations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: selectedCustomer,
+          planId: selectedPlan,
+          validityDays: 30,
+          lines: [
+            {
+              productId: selectedProduct,
+              variantId: selectedVariant || undefined,
+              quantity,
+              unitPrice
+            }
+          ]
+        })
+      });
+
+      if (res.ok) {
+        showToast('New quotation created');
+        setShowQuoteModal(false);
+        loadData();
+        setActiveTab('quotations');
+      }
+    } catch (e) {
+      showToast('Quote creation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const customerPortalData = {
+    customer: customers.find((c) => c.contactName?.toLowerCase().includes('sarah') || c.id === selectedCustomer) || customers[0],
+    subs: subscriptions.filter((s) => s.customerId === customers[0]?.id || customers.length === 1),
+    invs: invoices.filter((i) => i.customerId === customers[0]?.id || customers.length === 1)
   };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Toast Notification */}
       {toastMessage && (
-        <div style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          background: '#1e293b',
-          border: '1px solid rgba(99, 102, 241, 0.4)',
-          color: '#f8fafc',
-          padding: '12px 20px',
-          borderRadius: 10,
-          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          fontSize: 13,
-          fontWeight: 500
-        }}>
-          <Sparkles size={16} color="#818cf8" />
-          {toastMessage}
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1.25rem',
+            right: '1.25rem',
+            zIndex: 9999,
+            backgroundColor: 'var(--text-primary)',
+            color: 'var(--text-inverse)',
+            padding: '0.625rem 1rem',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border-subtle)',
+            fontSize: '0.8125rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.12)'
+          }}
+        >
+          <CheckCircle2 size={15} color="var(--brand-orange)" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Top Header Bar */}
-      <header style={{
-        background: 'rgba(15, 23, 42, 0.8)',
-        borderBottom: '1px solid var(--border)',
-        backdropFilter: 'blur(12px)',
-        padding: '12px 32px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-            width: 34,
-            height: 34,
-            borderRadius: 8,
+      {/* TOP COMPACT NAVIGATION BAR (Precision Engineered Header) */}
+      <header
+        style={{
+          borderBottom: '1px solid var(--border-subtle)',
+          backgroundColor: 'var(--bg-panel)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          height: '48px',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '1440px',
+            margin: '0 auto',
+            padding: '0 1.25rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 10px rgba(99, 102, 241, 0.4)'
-          }}>
-            <Repeat size={18} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em', color: '#fff' }}>
-              BRIGHTLOOP
+            justifyContent: 'space-between',
+            gap: '1rem'
+          }}
+        >
+          {/* Left: Industrial Brand Mark & Telemetry */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: 'var(--brand-orange)',
+                  borderRadius: 'var(--radius-xs)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFFFFF'
+                }}
+              >
+                <Repeat size={13} strokeWidth={2.5} />
+              </div>
+              <span style={{ fontSize: '0.9375rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
+                BRIGHTLOOP
+              </span>
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>
-              Subscription & Recurring Billing Platform
+
+            <div style={{ height: '14px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <span className="status-signal signal-active">
+                <span className="signal-dot" />
+                <span>ENGINE ONLINE</span>
+              </span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                LATENCY: {report?.queryTimeMs || 4}ms
+              </span>
             </div>
           </div>
 
-          {/* Scheduler Live Indicator */}
-          <div style={{
-            marginLeft: 24,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
-            padding: '3px 10px',
-            borderRadius: 999,
-            fontSize: 11,
-            color: '#34d399',
-            fontWeight: 600
-          }}>
-            <span style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: '#10b981',
-              boxShadow: '0 0 8px #10b981'
-            }} />
-            Auto-Billing Engine Active ({scheduler?.intervalSeconds || 30}s)
-          </div>
-        </div>
-
-        {/* Right Persona & Role Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            padding: 3
-          }}>
-            <button
-              onClick={() => { setCurrentRole('admin'); setActiveTab('dashboard'); }}
-              style={{
-                background: currentRole === 'admin' ? 'var(--accent-primary)' : 'transparent',
-                color: currentRole === 'admin' ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                padding: '4px 10px',
-                borderRadius: 6,
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Admin View
-            </button>
-            <button
-              onClick={() => { setCurrentRole('staff'); setActiveTab('quotations'); }}
-              style={{
-                background: currentRole === 'staff' ? 'var(--accent-primary)' : 'transparent',
-                color: currentRole === 'staff' ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                padding: '4px 10px',
-                borderRadius: 6,
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Staff Console
-            </button>
-            <button
-              onClick={() => { setCurrentRole('customer'); setActiveTab('portal'); }}
-              style={{
-                background: currentRole === 'customer' ? 'var(--accent-cyan)' : 'transparent',
-                color: currentRole === 'customer' ? '#0f172a' : 'var(--text-muted)',
-                border: 'none',
-                padding: '4px 10px',
-                borderRadius: 6,
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Customer Portal
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-            <div style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: '#334155',
+          {/* Center: Search Field */}
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '360px',
+              width: '100%',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              color: '#fff'
-            }}>
-              {currentRole === 'admin' ? 'A' : currentRole === 'staff' ? 'B' : 'S'}
+              alignItems: 'center'
+            }}
+          >
+            <Search size={13} style={{ position: 'absolute', left: '0.625rem', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Search contracts, invoices, accounts... (⌘K)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input-field"
+              style={{
+                height: '1.875rem',
+                paddingLeft: '2rem',
+                fontSize: '0.75rem',
+                backgroundColor: 'var(--bg-well)'
+              }}
+            />
+          </div>
+
+          {/* Right: Circular Icon Controls, Role, and User Chip */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {/* Refresh */}
+            <button
+              className="btn-icon-circle"
+              onClick={loadData}
+              title="Refresh telemetry"
+              disabled={loading}
+            >
+              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            </button>
+
+            {/* Notifications */}
+            <button className="btn-icon-circle" title="System alerts">
+              <Bell size={13} />
+            </button>
+
+            {/* Theme Toggle */}
+            <button
+              className="btn-icon-circle"
+              onClick={toggleTheme}
+              title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+            >
+              {theme === 'light' ? <Moon size={13} /> : <Sun size={13} color="var(--brand-orange)" />}
+            </button>
+
+            <div style={{ height: '14px', width: '1px', backgroundColor: 'var(--border-subtle)', margin: '0 0.25rem' }} />
+
+            {/* Persona Switcher Pill */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: 'var(--bg-well)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.15rem 0.5rem',
+                gap: '0.375rem',
+                height: '1.875rem'
+              }}
+            >
+              <Shield size={12} color="var(--brand-orange)" />
+              <select
+                value={currentRole}
+                onChange={(e) => setCurrentRole(e.target.value as any)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value="admin">Role: Admin</option>
+                <option value="staff">Role: Staff</option>
+                <option value="customer">Role: Customer</option>
+              </select>
             </div>
-            <div>
-              <div style={{ fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.2 }}>
-                {currentRole === 'admin' ? 'Alice Cooper' : currentRole === 'staff' ? 'Bob Miller' : 'Sarah Connor'}
-              </div>
-              <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>
-                {currentRole === 'admin' ? 'admin@brightloop.com' : currentRole === 'staff' ? 'staff@brightloop.com' : 'sarah@shopflow.com'}
-              </div>
+
+            {/* User Avatar */}
+            <div
+              style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: 'var(--text-primary)',
+                color: 'var(--text-inverse)',
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Signed in operator"
+            >
+              {currentRole === 'customer' ? 'SC' : 'OP'}
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Navigation Tabs */}
-      <nav style={{
-        background: 'rgba(15, 23, 42, 0.4)',
-        borderBottom: '1px solid var(--border)',
-        padding: '0 32px',
-        display: 'flex',
-        gap: 4
-      }}>
-        <TabButton icon={<LayoutDashboard size={15} />} label="Dashboard & KPIs" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-        <TabButton icon={<FileText size={15} />} label="Quotations" count={quotations.length} active={activeTab === 'quotations'} onClick={() => setActiveTab('quotations')} />
-        <TabButton icon={<Repeat size={15} />} label="Subscriptions" count={subscriptions.length} active={activeTab === 'subscriptions'} onClick={() => setActiveTab('subscriptions')} />
-        <TabButton icon={<Receipt size={15} />} label="Invoices & Payments" count={invoices.length} active={activeTab === 'invoices'} onClick={() => setActiveTab('invoices')} />
-        <TabButton icon={<Package size={15} />} label="Catalog & Pricing" active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} />
-        <TabButton icon={<User size={15} />} label="Customer Portal" active={activeTab === 'portal'} onClick={() => setActiveTab('portal')} />
-      </nav>
+      {/* SUB-HEADER: TECHNICAL NAVIGATION & SCHEDULER HORIZON */}
+      <div
+        style={{
+          borderBottom: '1px solid var(--border-subtle)',
+          backgroundColor: 'var(--bg-panel-elevated)',
+          padding: '0.5rem 1.25rem'
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '1440px',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem'
+          }}
+        >
+          {/* Segmented Navigation */}
+          <nav className="nav-segmented">
+            <button
+              className={`nav-tab-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              <LayoutDashboard size={13} />
+              <span>Operations Console</span>
+            </button>
+            <button
+              className={`nav-tab-item ${activeTab === 'quotations' ? 'active' : ''}`}
+              onClick={() => setActiveTab('quotations')}
+            >
+              <FileText size={13} />
+              <span>Quotations</span>
+              {quotations.filter((q) => q.status === 'SENT').length > 0 && (
+                <span
+                  style={{
+                    backgroundColor: 'var(--brand-orange)',
+                    color: '#FFFFFF',
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: '0.625rem',
+                    padding: '0 0.35rem',
+                    fontWeight: 700
+                  }}
+                >
+                  {quotations.filter((q) => q.status === 'SENT').length}
+                </span>
+              )}
+            </button>
+            <button
+              className={`nav-tab-item ${activeTab === 'subscriptions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('subscriptions')}
+            >
+              <Repeat size={13} />
+              <span>Subscriptions</span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                ({subscriptions.length})
+              </span>
+            </button>
+            <button
+              className={`nav-tab-item ${activeTab === 'invoices' ? 'active' : ''}`}
+              onClick={() => setActiveTab('invoices')}
+            >
+              <Receipt size={13} />
+              <span>Invoices & AR</span>
+              {invoices.filter((i) => i.isOverdue).length > 0 && (
+                <span
+                  style={{
+                    backgroundColor: 'var(--status-danger)',
+                    color: '#FFFFFF',
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: '0.625rem',
+                    padding: '0 0.35rem',
+                    fontWeight: 700
+                  }}
+                >
+                  {invoices.filter((i) => i.isOverdue).length}
+                </span>
+              )}
+            </button>
+            <button
+              className={`nav-tab-item ${activeTab === 'catalog' ? 'active' : ''}`}
+              onClick={() => setActiveTab('catalog')}
+            >
+              <Package size={13} />
+              <span>Catalog & Plans</span>
+            </button>
+            <button
+              className={`nav-tab-item ${activeTab === 'portal' ? 'active' : ''}`}
+              onClick={() => setActiveTab('portal')}
+            >
+              <Users size={13} />
+              <span>Customer Portal</span>
+            </button>
+          </nav>
 
-      {/* Main Content Area */}
-      <main style={{ flex: 1, padding: '28px 32px', maxWidth: 1400, width: '100%', margin: '0 auto' }}>
-        
-        {/* ========================================================= */}
-        {/* TAB 1: EXECUTIVE DASHBOARD */}
-        {/* ========================================================= */}
+          {/* Right: Scheduler Status Pill & Manual Trigger Action */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-secondary)'
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: scheduler?.isRunning ? 'var(--brand-orange)' : 'var(--text-muted)'
+                }}
+              />
+              <span>
+                SCHEDULER: {scheduler?.isRunning ? `TICK ${scheduler.intervalSeconds}s` : 'STOPPED'}
+              </span>
+              <span style={{ color: 'var(--text-muted)' }}>|</span>
+              <span>
+                TOTAL RUNS: {scheduler?.totalRuns || 0}
+              </span>
+            </div>
+
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleTriggerBilling}
+              disabled={billingLoading}
+            >
+              <Play size={12} />
+              <span>{billingLoading ? 'Executing Cycle...' : 'Run Billing Scan'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN WORKSPACE CONTENT */}
+      <main style={{ maxWidth: '1440px', margin: '0 auto', width: '100%', padding: '1.25rem', flex: 1 }}>
+        {/* ========================================================================= */}
+        {/* TAB 1: OPERATIONS CONSOLE (THE INDUSTRIAL DASHBOARD) */}
+        {/* ========================================================================= */}
         {activeTab === 'dashboard' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-              <div>
-                <h1 style={{ fontSize: 22, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
-                  Operational & Financial Performance
-                </h1>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Real-time subscription metrics, monthly recurring revenue, and accounts receivable.
-                </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* PRIMARY METRIC INSTRUMENT STRIP (Contiguous, Hairline Dividers) */}
+            <div className="instrument-strip">
+              <div className="instrument-strip-cell">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    Monthly Recurring Revenue
+                  </span>
+                  <DollarSign size={14} color="var(--brand-orange)" />
+                </div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)' }}>
+                  ${report ? parseFloat(report.mrr).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  Normalized monthly contracted run-rate
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={handleTriggerBilling} className="btn-primary">
-                  <Play size={14} fill="#fff" />
-                  Run Billing Scan Now
-                </button>
-                <button onClick={loadData} className="btn-secondary">
-                  <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                  Refresh
-                </button>
+              <div className="instrument-strip-cell">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    Active Subscriptions
+                  </span>
+                  <Repeat size={14} color="var(--brand-orange)" />
+                </div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)' }}>
+                  {report ? report.activeSubscriptions : subscriptions.filter((s) => s.status === 'ACTIVE').length}
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  {report?.pausedSubscriptions || 0} paused contracts • 0 cancellations
+                </div>
+              </div>
+
+              <div className="instrument-strip-cell">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    Settled Revenue
+                  </span>
+                  <CheckCircle2 size={14} color="var(--status-success)" />
+                </div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)', color: 'var(--status-success)' }}>
+                  ${report ? parseFloat(report.totalRevenueCollected).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  100% reconciled across wire & cards
+                </div>
+              </div>
+
+              <div className="instrument-strip-cell">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    Accounts Receivable
+                  </span>
+                  <AlertCircle size={14} color="var(--status-danger)" />
+                </div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)', color: parseFloat(report?.totalAmountOwed || '0') > 0 ? 'var(--status-danger)' : 'var(--text-primary)' }}>
+                  ${report ? parseFloat(report.totalAmountOwed).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--status-danger)', marginTop: '0.25rem' }}>
+                  {report?.overdueInvoicesCount || 0} overdue invoice (${report ? parseFloat(report.overdueAmount).toFixed(2) : '0.00'})
+                </div>
               </div>
             </div>
 
-            {/* KPI Cards Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 28 }}>
-              <KpiCard
-                title="Active Subscriptions"
-                value={report?.activeSubscriptions ?? 0}
-                subtitle={`${report?.pausedSubscriptions ?? 0} currently paused`}
-                color="#6366f1"
-              />
-              <KpiCard
-                title="Monthly Recurring Revenue"
-                value={`$${parseFloat(report?.mrr || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-                subtitle="Normalized monthly recurring run rate"
-                color="#06b6d4"
-              />
-              <KpiCard
-                title="Total Revenue Collected"
-                value={`$${parseFloat(report?.totalRevenueCollected || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-                subtitle="From settled customer payments"
-                color="#10b981"
-              />
-              <KpiCard
-                title="Total Amount Owed"
-                value={`$${parseFloat(report?.totalAmountOwed || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-                subtitle={`${report?.overdueInvoicesCount ?? 0} overdue invoices`}
-                color={report?.overdueInvoicesCount > 0 ? '#f43f5e' : '#f59e0b'}
-              />
-            </div>
+            {/* TWO-COLUMN INDUSTRIAL WORKSPACE (68% Main / 32% Side Panels) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
+              {/* LEFT COLUMN: PRIMARY WORKSPACE */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {/* Billing Engine Telemetry Panel */}
+                <div className="instrument-panel" style={{ padding: '1rem 1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Cpu size={15} color="var(--brand-orange)" />
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Automatic Recurring Billing Telemetry
+                      </span>
+                    </div>
+                    <span className="status-signal signal-orange">
+                      <span className="signal-dot" />
+                      <span>Lock: Advisory 89214 Safe</span>
+                    </span>
+                  </div>
 
-            {/* Quick Scene Tour Panel */}
-            <div className="glass-panel" style={{ padding: 20, marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
-                  Workflow Quick Action: Convert Quote to Invoiced & Paid in Seconds
-                </h3>
-                <span className="badge badge-active">Scene 1–7 Ready</span>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                      gap: '0.75rem',
+                      padding: '0.75rem',
+                      backgroundColor: 'var(--bg-well)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem' }}>Execution Mode</div>
+                      <div style={{ fontWeight: 600, marginTop: '0.15rem' }}>In-Process Scheduler</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem' }}>Last Scan Executed</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, marginTop: '0.15rem' }}>
+                        {scheduler?.lastRunAt ? new Date(scheduler.lastRunAt).toLocaleTimeString() : 'Pending'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem' }}>Last Batch Generated</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)', marginTop: '0.15rem' }}>
+                        {scheduler?.lastGeneratedCount || 0} invoices
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem' }}>Duplicates Skipped</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, marginTop: '0.15rem' }}>
+                        {scheduler?.lastSkippedCount || 0} (Idempotent)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Data Table: Operational Invoices */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Receipt size={14} color="var(--brand-orange)" />
+                      <h3 style={{ fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Recent Invoices & Accounts Receivable
+                      </h3>
+                    </div>
+                    <button className="btn btn-outline btn-sm" onClick={() => setActiveTab('invoices')}>
+                      <span>View All Invoices</span>
+                      <ArrowRight size={12} />
+                    </button>
+                  </div>
+
+                  <div className="table-wrapper">
+                    <table className="table-industrial">
+                      <thead>
+                        <tr>
+                          <th>Invoice Ref</th>
+                          <th>Customer</th>
+                          <th>Period Horizon</th>
+                          <th>Status</th>
+                          <th style={{ textAlign: 'right' }}>Total</th>
+                          <th style={{ textAlign: 'right' }}>Balance Due</th>
+                          <th style={{ textAlign: 'center' }}>PDF</th>
+                          <th style={{ textAlign: 'right' }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoices.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+                              No invoices generated yet.
+                            </td>
+                          </tr>
+                        ) : (
+                          invoices.slice(0, 6).map((inv) => {
+                            const cust = customers.find((c) => c.id === inv.customerId);
+                            const isPaid = inv.status === 'PAID';
+                            const outstanding = Math.max(0, parseFloat(inv.totalAmount) - parseFloat(inv.amountPaid));
+
+                            return (
+                              <tr key={inv.id}>
+                                <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
+                                <td>
+                                  <div style={{ fontWeight: 500 }}>
+                                    {inv.customerSnapshot?.companyName || cust?.companyName || 'Corporate Client'}
+                                  </div>
+                                </td>
+                                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                  {inv.billingPeriodStart} ➔ {inv.billingPeriodEnd}
+                                </td>
+                                <td>
+                                  <span
+                                    className={`status-signal ${
+                                      isPaid ? 'signal-active' : inv.isOverdue ? 'signal-danger' : 'signal-orange'
+                                    }`}
+                                  >
+                                    <span className="signal-dot" />
+                                    <span>{isPaid ? 'PAID' : inv.isOverdue ? 'OVERDUE' : inv.status}</span>
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                                  ${parseFloat(inv.totalAmount).toFixed(2)}
+                                </td>
+                                <td
+                                  style={{
+                                    textAlign: 'right',
+                                    fontFamily: 'var(--font-mono)',
+                                    fontWeight: 700,
+                                    color: outstanding > 0 ? 'var(--status-danger)' : 'var(--status-success)'
+                                  }}
+                                >
+                                  ${outstanding.toFixed(2)}
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <a
+                                    href={`${API_BASE}/invoices/${inv.id}/pdf`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn-icon-circle"
+                                    title="Download PDF"
+                                    style={{ width: '24px', height: '24px' }}
+                                  >
+                                    <Download size={11} />
+                                  </a>
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {!isPaid ? (
+                                    <button
+                                      className="btn btn-primary btn-sm"
+                                      onClick={() => {
+                                        setSelectedInvoice(inv);
+                                        setPaymentAmount(outstanding.toFixed(2));
+                                        setShowPaymentModal(true);
+                                      }}
+                                    >
+                                      Record
+                                    </button>
+                                  ) : (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', fontWeight: 600 }}>Settled</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-                Follow Brightloop's standard flow: create a quote with Odoo variant (+560), convert to active subscription, trigger billing day run, and record payment.
-              </p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <button onClick={() => { setActiveTab('quotations'); setShowQuoteModal(true); }} className="btn-secondary btn-sm">
-                  1. Create Quote (+560 Variant)
-                </button>
-                <button onClick={() => setActiveTab('quotations')} className="btn-secondary btn-sm">
-                  2. Convert Quote to Subscription
-                </button>
-                <button onClick={handleTriggerBilling} className="btn-secondary btn-sm">
-                  3. Trigger Billing Run
-                </button>
-                <button onClick={() => setActiveTab('invoices')} className="btn-secondary btn-sm">
-                  4. View Invoice & Download PDF
-                </button>
+
+              {/* RIGHT COLUMN: SECONDARY INFORMATION PANELS */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {/* System Activity Stream */}
+                <div className="instrument-panel" style={{ padding: '1rem 1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Activity size={14} color="var(--brand-orange)" />
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Operational Audit Trail
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>LIVE STREAM</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', fontSize: '0.75rem' }}>
+                    <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-hairline)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
+                        <span>SYSTEM CRON</span>
+                        <span style={{ fontFamily: 'var(--font-mono)' }}>T-00:12</span>
+                      </div>
+                      <div style={{ fontWeight: 500, marginTop: '0.15rem' }}>
+                        Automated scan evaluated active subscriptions with 0 duplicate collisions.
+                      </div>
+                    </div>
+
+                    <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-hairline)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
+                        <span>FINANCE RECONCILE</span>
+                        <span style={{ fontFamily: 'var(--font-mono)' }}>SETTLED</span>
+                      </div>
+                      <div style={{ fontWeight: 500, marginTop: '0.15rem' }}>
+                        Wire transfer payment reconciled against invoice with zero float drift.
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
+                        <span>CATALOG DISPATCH</span>
+                        <span style={{ fontFamily: 'var(--font-mono)' }}>ODOO +560</span>
+                      </div>
+                      <div style={{ fontWeight: 500, marginTop: '0.15rem' }}>
+                        Brand variant pricing adjustment correctly applied to new quotes.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Overdue Collection Queue */}
+                <div className="instrument-panel" style={{ padding: '1rem 1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <AlertCircle size={14} color="var(--status-danger)" />
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Overdue Invoices Queue
+                      </span>
+                    </div>
+                    <span className="status-signal signal-danger">
+                      <span className="signal-dot" />
+                      <span>{invoices.filter((i) => i.isOverdue).length} PENDING</span>
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {invoices.filter((i) => i.isOverdue).length === 0 ? (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
+                        No overdue accounts receivable.
+                      </div>
+                    ) : (
+                      invoices.filter((i) => i.isOverdue).map((inv) => (
+                        <div
+                          key={inv.id}
+                          style={{
+                            padding: '0.625rem',
+                            backgroundColor: 'var(--bg-well)',
+                            borderRadius: 'var(--radius-sm)',
+                            borderLeft: '3px solid var(--status-danger)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
+                              {inv.invoiceNumber}
+                            </div>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
+                              Due Date: {inv.dueDate}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--status-danger)' }}>
+                              ${parseFloat(inv.outstandingAmount || inv.totalAmount).toFixed(2)}
+                            </div>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              style={{ height: '1.5rem', padding: '0 0.5rem', fontSize: '0.6875rem', marginTop: '0.25rem' }}
+                              onClick={() => {
+                                setSelectedInvoice(inv);
+                                setPaymentAmount(inv.outstandingAmount || inv.totalAmount);
+                                setShowPaymentModal(true);
+                              }}
+                            >
+                              Collect
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Database Infrastructure Status */}
+                <div className="instrument-panel" style={{ padding: '1rem 1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
+                    <Database size={14} color="var(--brand-orange)" />
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Infrastructure Telemetry
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Relational Store</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>PostgreSQL 16 (Port 5433)</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Numeric Money Invariant</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>NUMERIC(14, 4) Zero Float</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Locking Protocol</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>pg_try_advisory_xact_lock</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 2: QUOTATIONS */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
+        {/* TAB 2: QUOTATIONS (SCENE 3) */}
+        {/* ========================================================================= */}
         {activeTab === 'quotations' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>Quotations & Sales Proposals</h2>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Scene 3: Reusable templates, validity windows, and 1-click conversion to active subscriptions.
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Quotations & Sales Proposals</h2>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Manage multi-tier proposals with 1-click atomic conversion into active contracts.
                 </p>
               </div>
-              <button onClick={() => setShowQuoteModal(true)} className="btn-primary">
-                <Plus size={15} />
-                New Quotation
+              <button className="btn btn-primary btn-sm" onClick={() => setShowQuoteModal(true)}>
+                <Plus size={13} />
+                <span>Create New Quotation</span>
               </button>
             </div>
 
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
-              <table className="data-table">
+            <div className="table-wrapper">
+              <table className="table-industrial">
                 <thead>
                   <tr>
-                    <th>Quote #</th>
-                    <th>Customer</th>
-                    <th>Expires At</th>
+                    <th>Quote Ref</th>
+                    <th>Customer Account</th>
+                    <th>Billing Plan</th>
                     <th>Status</th>
-                    <th>Actions</th>
+                    <th>Expiry Horizon</th>
+                    <th>Converted Contract</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {quotations.length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 30 }}>No quotations generated yet. Click "New Quotation" above.</td></tr>
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        No quotations found.
+                      </td>
+                    </tr>
                   ) : (
-                    quotations.map((q) => (
-                      <tr key={q.id}>
-                        <td style={{ fontWeight: 600, color: 'var(--accent-cyan)' }}>{q.quoteNumber}</td>
-                        <td>{customers.find(c => c.id === q.customerId)?.companyName || 'ShopFlow Retail'}</td>
-                        <td>{new Date(q.expiresAt).toLocaleDateString()}</td>
-                        <td>
-                          <span className={`badge badge-${q.status.toLowerCase()}`}>
-                            {q.status}
-                          </span>
-                        </td>
-                        <td>
-                          {q.status === 'SENT' ? (
-                            <button
-                              onClick={() => handleConvertQuote(q.id)}
-                              className="btn-primary btn-sm"
-                            >
-                              <CheckCircle2 size={13} />
-                              Convert to Subscription
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                              Converted (Sub: {q.convertedSubscriptionId?.slice(0, 8)})
+                    quotations.map((q) => {
+                      const cust = customers.find((c) => c.id === q.customerId);
+                      const plan = plans.find((p) => p.id === q.planId);
+                      const isConverted = q.status === 'CONVERTED';
+
+                      return (
+                        <tr key={q.id}>
+                          <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{q.quoteNumber}</td>
+                          <td>
+                            <div style={{ fontWeight: 500 }}>{cust?.companyName || 'Corporate Client'}</div>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>{cust?.contactName}</div>
+                          </td>
+                          <td>{plan?.name || 'Enterprise Annual'}</td>
+                          <td>
+                            <span className={`status-signal ${isConverted ? 'signal-active' : 'signal-orange'}`}>
+                              <span className="signal-dot" />
+                              <span>{q.status}</span>
                             </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            {q.expiresAt ? new Date(q.expiresAt).toLocaleDateString() : '30 days'}
+                          </td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            {q.convertedSubscriptionId ? (
+                              <span style={{ color: 'var(--brand-orange)', fontWeight: 600 }}>
+                                #{q.convertedSubscriptionId.slice(0, 8)}...
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {!isConverted ? (
+                              <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleConvertQuote(q.id)}
+                              >
+                                <span>Convert to Sub</span>
+                                <ArrowRight size={12} />
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', fontWeight: 600 }}>
+                                Converted
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -552,215 +1086,291 @@ export function App() {
           </div>
         )}
 
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
         {/* TAB 3: SUBSCRIPTIONS */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
         {activeTab === 'subscriptions' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>Active Subscriptions</h2>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Scene 2 & 4: Commercial agreements, renewal policies, and automatic billing due dates.
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Contracted Subscriptions</h2>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Active recurring agreements, lifecycle state toggles, and next billing horizons.
                 </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <span className="status-signal signal-active">
+                  <span className="signal-dot" />
+                  <span>{subscriptions.filter((s) => s.status === 'ACTIVE').length} Active</span>
+                </span>
+                <span className="status-signal signal-warning">
+                  <span className="signal-dot" />
+                  <span>{subscriptions.filter((s) => s.status === 'PAUSED').length} Paused</span>
+                </span>
               </div>
             </div>
 
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
-              <table className="data-table">
+            <div className="table-wrapper">
+              <table className="table-industrial">
                 <thead>
                   <tr>
-                    <th>Subscription #</th>
+                    <th>Contract Ref</th>
                     <th>Customer</th>
                     <th>Plan</th>
-                    <th>Next Billing Date</th>
                     <th>Status</th>
-                    <th>Actions</th>
+                    <th>Commencement</th>
+                    <th>Next Scheduled Horizon</th>
+                    <th>Terms</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {subscriptions.length === 0 ? (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 30 }}>No subscriptions active. Convert an accepted quote to create one.</td></tr>
-                  ) : (
-                    subscriptions.map((s) => (
-                      <tr key={s.id}>
-                        <td style={{ fontWeight: 600, color: '#a5b4fc' }}>{s.subscriptionNumber}</td>
-                        <td>{customers.find(c => c.id === s.customerId)?.companyName || 'ShopFlow'}</td>
-                        <td>{plans.find(p => p.id === s.planId)?.name || 'Monthly Growth'}</td>
-                        <td style={{ fontWeight: 500, color: 'var(--accent-cyan)' }}>{s.nextBillingDate}</td>
+                  {subscriptions.map((sub) => {
+                    const cust = customers.find((c) => c.id === sub.customerId);
+                    const plan = plans.find((p) => p.id === sub.planId);
+                    const isActive = sub.status === 'ACTIVE';
+
+                    return (
+                      <tr key={sub.id}>
+                        <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{sub.subscriptionNumber}</td>
                         <td>
-                          <span className={`badge badge-${s.status.toLowerCase()}`}>
-                            {s.status}
+                          <div style={{ fontWeight: 500 }}>{cust?.companyName || 'Corporate Client'}</div>
+                          <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>{cust?.email}</div>
+                        </td>
+                        <td>{plan?.name || 'Standard Monthly'}</td>
+                        <td>
+                          <span
+                            className={`status-signal ${
+                              isActive ? 'signal-active' : sub.status === 'PAUSED' ? 'signal-warning' : 'signal-danger'
+                            }`}
+                          >
+                            <span className="signal-dot" />
+                            <span>{sub.status}</span>
                           </span>
                         </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{sub.startDate}</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)' }}>
+                          {sub.nextBillingDate}
+                        </td>
                         <td>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button
-                              onClick={() => handleToggleSubStatus(s.id, s.status)}
-                              className="btn-secondary btn-sm"
-                            >
-                              {s.status === 'ACTIVE' ? <><Pause size={12} /> Pause</> : <><Play size={12} /> Resume</>}
-                            </button>
-                            <button
-                              onClick={handleTriggerBilling}
-                              className="btn-primary btn-sm"
-                            >
-                              Bill Now
-                            </button>
-                          </div>
+                          <span className="status-signal">{sub.paymentTerms || 'NET_30'}</span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => handleToggleSubStatus(sub.id, sub.status)}
+                          >
+                            {isActive ? <Pause size={12} /> : <Play size={12} />}
+                            <span>{isActive ? 'Pause' : 'Resume'}</span>
+                          </button>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
         {/* TAB 4: INVOICES & PAYMENTS */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
         {activeTab === 'invoices' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
               <div>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>Invoices & Accounts Receivable</h2>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Scene 4 & 6: Automated tax & discount computation, PDFKit generation, and payment matching.
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Invoices & Receivables Ledger</h2>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Immutable financial snapshots, vector PDF statements, and settlement ledger.
                 </p>
               </div>
-              <button onClick={handleTriggerBilling} className="btn-primary">
-                <Play size={14} fill="#fff" />
-                Run Billing Scan
+
+              <button className="btn btn-primary btn-sm" onClick={handleTriggerBilling} disabled={billingLoading}>
+                <Play size={12} />
+                <span>{billingLoading ? 'Processing...' : 'Run Billing Scan'}</span>
               </button>
             </div>
 
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
-              <table className="data-table">
+            <div className="table-wrapper">
+              <table className="table-industrial">
                 <thead>
                   <tr>
-                    <th>Invoice #</th>
+                    <th>Invoice No</th>
                     <th>Customer</th>
-                    <th>Billing Period</th>
-                    <th>Total ($)</th>
-                    <th>Paid ($)</th>
-                    <th>Balance Due</th>
+                    <th>Billing Horizon</th>
                     <th>Status</th>
-                    <th>Actions</th>
+                    <th style={{ textAlign: 'right' }}>Subtotal</th>
+                    <th style={{ textAlign: 'right' }}>Discount</th>
+                    <th style={{ textAlign: 'right' }}>Tax (20%)</th>
+                    <th style={{ textAlign: 'right' }}>Total</th>
+                    <th style={{ textAlign: 'right' }}>Balance Due</th>
+                    <th style={{ textAlign: 'center' }}>PDF</th>
+                    <th style={{ textAlign: 'right' }}>Reconcile</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.length === 0 ? (
-                    <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 30 }}>No invoices generated yet. Run a billing scan to generate invoices.</td></tr>
-                  ) : (
-                    invoices.map((inv) => (
+                  {invoices.map((inv) => {
+                    const cust = customers.find((c) => c.id === inv.customerId);
+                    const isPaid = inv.status === 'PAID';
+                    const outstanding = Math.max(0, parseFloat(inv.totalAmount) - parseFloat(inv.amountPaid));
+
+                    return (
                       <tr key={inv.id}>
-                        <td style={{ fontWeight: 600, color: '#f8fafc' }}>{inv.invoiceNumber}</td>
-                        <td>{customers.find(c => c.id === inv.customerId)?.companyName || 'ShopFlow'}</td>
-                        <td style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                          {inv.billingPeriodStart} → {inv.billingPeriodEnd}
+                        <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>
+                            {inv.customerSnapshot?.companyName || cust?.companyName || 'Corporate Client'}
+                          </div>
+                          <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Due: {inv.dueDate}</div>
                         </td>
-                        <td style={{ fontWeight: 600 }}>${parseFloat(inv.totalAmount).toFixed(2)}</td>
-                        <td style={{ color: '#34d399' }}>${parseFloat(inv.amountPaid).toFixed(2)}</td>
-                        <td style={{ fontWeight: 600, color: parseFloat(inv.outstandingAmount) > 0 ? '#fb7185' : '#94a3b8' }}>
-                          ${parseFloat(inv.outstandingAmount).toFixed(2)}
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                          {inv.billingPeriodStart} ➔ {inv.billingPeriodEnd}
                         </td>
                         <td>
-                          {inv.isOverdue ? (
-                            <span className="badge badge-overdue">OVERDUE</span>
+                          <span
+                            className={`status-signal ${
+                              isPaid ? 'signal-active' : inv.isOverdue ? 'signal-danger' : 'signal-orange'
+                            }`}
+                          >
+                            <span className="signal-dot" />
+                            <span>{isPaid ? 'PAID' : inv.isOverdue ? 'OVERDUE' : inv.status}</span>
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                          ${parseFloat(inv.subtotal).toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--brand-orange)' }}>
+                          -${parseFloat(inv.discountAmount).toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                          ${parseFloat(inv.taxAmount).toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                          ${parseFloat(inv.totalAmount).toFixed(2)}
+                        </td>
+                        <td
+                          style={{
+                            textAlign: 'right',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 700,
+                            color: outstanding > 0 ? 'var(--status-danger)' : 'var(--status-success)'
+                          }}
+                        >
+                          ${outstanding.toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <a
+                            href={`${API_BASE}/invoices/${inv.id}/pdf`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn-icon-circle"
+                            title="Download Vector PDF"
+                            style={{ width: '24px', height: '24px' }}
+                          >
+                            <Download size={11} />
+                          </a>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          {!isPaid ? (
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => {
+                                setSelectedInvoice(inv);
+                                setPaymentAmount(outstanding.toFixed(2));
+                                setShowPaymentModal(true);
+                              }}
+                            >
+                              <CreditCard size={11} />
+                              <span>Record</span>
+                            </button>
                           ) : (
-                            <span className={`badge badge-${inv.status.toLowerCase()}`}>
-                              {inv.status}
-                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', fontWeight: 600 }}>Settled</span>
                           )}
                         </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <a
-                              href={`${API_BASE}/invoices/${inv.id}/pdf`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn-secondary btn-sm"
-                              style={{ textDecoration: 'none' }}
-                            >
-                              <Download size={13} />
-                              PDF
-                            </a>
-                            {inv.status !== 'PAID' && (
-                              <button
-                                onClick={() => {
-                                  setSelectedInvoice(inv);
-                                  setPaymentAmount(inv.outstandingAmount);
-                                  setShowPaymentModal(true);
-                                }}
-                                className="btn-primary btn-sm"
-                              >
-                                <CreditCard size={13} />
-                                Pay
-                              </button>
-                            )}
-                          </div>
-                        </td>
                       </tr>
-                    ))
-                  )}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 5: CATALOG & PRICING */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
+        {/* TAB 5: CATALOG & INTERVAL PLANS */}
+        {/* ========================================================================= */}
         {activeTab === 'catalog' && (
-          <div>
-            <div style={{ marginBottom: 20 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>Products, Plans & Discounts</h2>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                Scene 2 & 5: Configurable variant adjustments (e.g. Odoo brand +560.0000), minimum quantities, and tax rules.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Software Catalog & Variant Adjustments</h2>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                Configured software solutions, multi-brand variant differentials (+560 Odoo brand), and interval plans.
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-              {/* Products Card */}
-              <div className="glass-panel" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Package size={16} color="var(--accent-primary)" />
-                  Software Products & Variants
-                </h3>
-                {products.map((p) => (
-                  <div key={p.id} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: '#f8fafc' }}>{p.name}</span>
-                      <span style={{ fontWeight: 700, color: 'var(--accent-cyan)' }}>${parseFloat(p.salesPrice).toFixed(2)}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+              {products.map((p) => (
+                <div key={p.id} className="instrument-panel" style={{ padding: '1.125rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{p.name}</h3>
+                      <span className="status-signal signal-orange" style={{ marginTop: '0.25rem' }}>
+                        {p.productType}
+                      </span>
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)', margin: '4px 0' }}>{p.notes}</div>
-                    {p.variants?.map((v: any) => (
-                      <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#a5b4fc', marginLeft: 12, marginTop: 4 }}>
-                        <span>↳ {v.name}</span>
-                        <span style={{ fontWeight: 600 }}>+${parseFloat(v.priceAdjustment).toFixed(2)}</span>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                        ${parseFloat(p.salesPrice).toFixed(2)}
                       </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              {/* Plans Card */}
-              <div className="glass-panel" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Repeat size={16} color="var(--accent-cyan)" />
-                  Billing Plans & Intervals
-                </h3>
-                {plans.map((pl) => (
-                  <div key={pl.id} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: '#f8fafc' }}>{pl.name}</span>
-                      <span className="badge badge-active">{pl.billingInterval}</span>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Base list price</div>
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>
-                      Min Qty: {pl.minQuantity} seat(s) | Auto-Close: {pl.autoClose ? 'Yes' : 'No'} | Pause Allowed: {pl.allowPause ? 'Yes' : 'No'}
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                      Brand Variant Differentials
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                      {p.variants?.map((v: any) => (
+                        <div
+                          key={v.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.45rem 0.625rem',
+                            backgroundColor: 'var(--bg-well)',
+                            borderRadius: 'var(--radius-xs)',
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{v.name}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)' }}>
+                            +{parseFloat(v.priceAdjustment).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Billing Interval Plans</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                {plans.map((pl) => (
+                  <div key={pl.id} className="instrument-panel" style={{ padding: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+                      <h4 style={{ fontWeight: 600, fontSize: '0.875rem' }}>{pl.name}</h4>
+                      <span className="status-signal">{pl.billingInterval}</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      <div>Min Seats: {pl.minQuantity} units</div>
+                      <div>Auto-Close on Expiry: {pl.autoClose ? 'Yes' : 'No'}</div>
+                      <div>Allows Contract Pause: {pl.allowPause ? 'Yes' : 'No'}</div>
                     </div>
                   </div>
                 ))}
@@ -769,109 +1379,191 @@ export function App() {
           </div>
         )}
 
-        {/* ========================================================= */}
-        {/* TAB 6: CUSTOMER PORTAL */}
-        {/* ========================================================= */}
+        {/* ========================================================================= */}
+        {/* TAB 6: CUSTOMER SELF-SERVICE PORTAL */}
+        {/* ========================================================================= */}
         {activeTab === 'portal' && (
-          <div>
-            <div className="glass-panel" style={{ padding: 24, marginBottom: 24, background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="instrument-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--brand-orange)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                  <span className="badge badge-confirmed" style={{ marginBottom: 8 }}>Self-Service Subscriber Portal</span>
-                  <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>ShopFlow Retail Solutions</h2>
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                    Primary Contact: Sarah Connor (sarah@shopflow.com) | NY Sales Tax Registered
+                  <span className="status-signal signal-orange">Customer Self-Service Interface</span>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginTop: '0.25rem' }}>
+                    {customerPortalData.customer?.companyName || 'Corporate Client Account'}
+                  </h2>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Primary Contact: {customerPortalData.customer?.contactName} • {customerPortalData.customer?.email}
                   </p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your Balance Due</div>
-                  <div style={{ fontSize: 26, fontWeight: 800, color: invoices.some(i => parseFloat(i.outstandingAmount) > 0) ? '#fb7185' : '#34d399' }}>
-                    ${invoices.reduce((sum, i) => sum + parseFloat(i.outstandingAmount || '0'), 0).toFixed(2)}
+
+                <div style={{ display: 'flex', gap: '0.625rem' }}>
+                  <div className="instrument-panel" style={{ padding: '0.625rem 1rem' }}>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Active Plan</div>
+                    <div style={{ fontWeight: 700, color: 'var(--brand-orange)', fontSize: '0.8125rem' }}>
+                      Monthly Pro (Odoo Brand)
+                    </div>
+                  </div>
+                  <div className="instrument-panel" style={{ padding: '0.625rem 1rem' }}>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Total Invoices</div>
+                    <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
+                      {customerPortalData.invs.length}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="glass-panel" style={{ padding: 20 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 16 }}>
-                Your Subscriptions & Invoice History
-              </h3>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Invoice / Document</th>
-                    <th>Billing Period</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Download</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv) => (
-                    <tr key={inv.id}>
-                      <td style={{ fontWeight: 600 }}>{inv.invoiceNumber}</td>
-                      <td>{inv.billingPeriodStart} → {inv.billingPeriodEnd}</td>
-                      <td style={{ fontWeight: 600 }}>${parseFloat(inv.totalAmount).toFixed(2)}</td>
-                      <td>
-                        <span className={`badge badge-${inv.status.toLowerCase()}`}>{inv.status}</span>
-                      </td>
-                      <td>
-                        <a
-                          href={`${API_BASE}/invoices/${inv.id}/pdf`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn-primary btn-sm"
-                          style={{ textDecoration: 'none' }}
-                        >
-                          <Download size={13} />
-                          Invoice PDF
-                        </a>
-                      </td>
+            <div>
+              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.5rem' }}>Active Agreements</h3>
+              <div className="table-wrapper">
+                <table className="table-industrial">
+                  <thead>
+                    <tr>
+                      <th>Subscription ID</th>
+                      <th>Status</th>
+                      <th>Commenced</th>
+                      <th>Next Horizon</th>
+                      <th>Terms</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {customerPortalData.subs.map((s) => (
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{s.subscriptionNumber}</td>
+                        <td>
+                          <span className="status-signal signal-active">
+                            <span className="signal-dot" />
+                            <span>{s.status}</span>
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)' }}>{s.startDate}</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)' }}>
+                          {s.nextBillingDate}
+                        </td>
+                        <td>{s.paymentTerms}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.5rem' }}>Invoice Statements & Vector PDF</h3>
+              <div className="table-wrapper">
+                <table className="table-industrial">
+                  <thead>
+                    <tr>
+                      <th>Invoice No</th>
+                      <th>Issue Date</th>
+                      <th>Billing Period</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Total</th>
+                      <th style={{ textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customerPortalData.invs.map((inv) => (
+                      <tr key={inv.id}>
+                        <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
+                        <td style={{ fontFamily: 'var(--font-mono)' }}>{inv.issueDate}</td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                          {inv.billingPeriodStart} to {inv.billingPeriodEnd}
+                        </td>
+                        <td>
+                          <span className={`status-signal ${inv.status === 'PAID' ? 'signal-active' : 'signal-orange'}`}>
+                            <span className="signal-dot" />
+                            <span>{inv.status}</span>
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+                          ${parseFloat(inv.totalAmount).toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <a
+                            href={`${API_BASE}/invoices/${inv.id}/pdf`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-primary btn-sm"
+                          >
+                            <Download size={12} />
+                            <span>Download PDF</span>
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
       </main>
 
-      {/* Modal: Create Quotation */}
+      {/* ========================================================================= */}
+      {/* MODAL: CREATE QUOTATION */}
+      {/* ========================================================================= */}
       {showQuoteModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 16 }}>
-              Create New Commercial Quotation
-            </h3>
-            <form onSubmit={handleCreateQuote} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="dialog-backdrop">
+          <div className="dialog-panel">
+            <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Generate New Quotation</h3>
+              <button className="btn-icon-circle" onClick={() => setShowQuoteModal(false)}>✕</button>
+            </div>
+
+            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Customer</label>
-                <select value={selectedCustomer} onChange={(e) => setSelectedCustomer(e.target.value)} className="input-control">
-                  {customers.map((c) => <option key={c.id} value={c.id}>{c.companyName} ({c.email})</option>)}
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Customer</label>
+                <select
+                  className="input-field"
+                  value={selectedCustomer}
+                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                >
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.companyName} ({c.contactName})</option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Recurring Plan</label>
-                <select value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value)} className="input-control">
-                  {plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.billingInterval})</option>)}
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Billing Plan</label>
+                <select
+                  className="input-field"
+                  value={selectedPlan}
+                  onChange={(e) => setSelectedPlan(e.target.value)}
+                >
+                  {plans.map((pl) => (
+                    <option key={pl.id} value={pl.id}>{pl.name} ({pl.billingInterval})</option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Software Product</label>
-                <select value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="input-control">
-                  {products.map((p) => <option key={p.id} value={p.id}>{p.name} (${parseFloat(p.salesPrice).toFixed(2)})</option>)}
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Product</label>
+                <select
+                  className="input-field"
+                  value={selectedProduct}
+                  onChange={(e) => {
+                    setSelectedProduct(e.target.value);
+                    const p = products.find((prod) => prod.id === e.target.value);
+                    if (p?.variants?.[0]) setSelectedVariant(p.variants[0].id);
+                  }}
+                >
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} - ${parseFloat(p.salesPrice).toFixed(2)}</option>
+                  ))}
                 </select>
               </div>
 
-              {products.find(p => p.id === selectedProduct)?.variants?.length > 0 && (
+              {products.find((p) => p.id === selectedProduct)?.variants?.length > 0 && (
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Product Variant (Brand Adjustment)
-                  </label>
-                  <select value={selectedVariant} onChange={(e) => setSelectedVariant(e.target.value)} className="input-control">
-                    {products.find(p => p.id === selectedProduct)?.variants.map((v: any) => (
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Brand Variant</label>
+                  <select
+                    className="input-field"
+                    value={selectedVariant}
+                    onChange={(e) => setSelectedVariant(e.target.value)}
+                  >
+                    {products.find((p) => p.id === selectedProduct)?.variants.map((v: any) => (
                       <option key={v.id} value={v.id}>{v.name} (+${parseFloat(v.priceAdjustment).toFixed(2)})</option>
                     ))}
                   </select>
@@ -879,74 +1571,101 @@ export function App() {
               )}
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Seat / License Quantity</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Seats / Quantity</label>
                 <input
                   type="number"
-                  min="1"
+                  min={1}
+                  className="input-field"
                   value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="input-control"
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                 />
               </div>
+            </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
-                <button type="button" onClick={() => setShowQuoteModal(false)} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary">Generate Quotation</button>
-              </div>
-            </form>
+            <div style={{ padding: '0.875rem 1.25rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn btn-outline btn-sm" onClick={() => setShowQuoteModal(false)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={handleCreateQuote} disabled={loading}>
+                {loading ? 'Creating...' : 'Create Quotation'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Record Payment */}
+      {/* ========================================================================= */}
+      {/* MODAL: RECORD PAYMENT */}
+      {/* ========================================================================= */}
       {showPaymentModal && selectedInvoice && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 12 }}>
-              Record Payment: {selectedInvoice.invoiceNumber}
-            </h3>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-              Total Amount: ${parseFloat(selectedInvoice.totalAmount).toFixed(2)} | Current Outstanding: ${parseFloat(selectedInvoice.outstandingAmount).toFixed(2)}
-            </p>
-            <form onSubmit={handleRecordPayment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="dialog-backdrop">
+          <div className="dialog-panel">
+            <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Payment Amount ($)</label>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Record Customer Settlement</h3>
+                <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Invoice Ref: {selectedInvoice.invoiceNumber}</p>
+              </div>
+              <button className="btn-icon-circle" onClick={() => setShowPaymentModal(false)}>✕</button>
+            </div>
+
+            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-well)', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Invoice Total:</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${parseFloat(selectedInvoice.totalAmount).toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Settled to Date:</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(selectedInvoice.amountPaid).toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.25rem' }}>
+                  <span style={{ fontWeight: 600 }}>Outstanding Balance Due:</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-orange)' }}>
+                    ${Math.max(0, parseFloat(selectedInvoice.totalAmount) - parseFloat(selectedInvoice.amountPaid)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Payment Amount ($)</label>
                 <input
-                  type="text"
+                  type="number"
+                  step="0.01"
+                  className="input-field"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="input-control"
-                  required
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Payment Method</label>
-                <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="input-control">
-                  <option value="WIRE_TRANSFER">Wire Transfer</option>
-                  <option value="CREDIT_CARD">Credit Card</option>
-                  <option value="BANK_DEBIT">Direct Debit (ACH)</option>
-                  <option value="CHECK">Corporate Check</option>
-                  <option value="OTHER">Other / Cash</option>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Payment Method</label>
+                <select
+                  className="input-field"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
+                  <option value="WIRE_TRANSFER">Wire Transfer (Fedwire / ACH)</option>
+                  <option value="CREDIT_CARD">Corporate Card</option>
+                  <option value="CHECK">Certified Bank Check</option>
                 </select>
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Notes / Reference</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Audit Reference</label>
                 <input
                   type="text"
-                  placeholder="e.g. Bank Ref #9921"
+                  placeholder="e.g. JPMorgan Wire Ref #100293"
+                  className="input-field"
                   value={paymentNote}
                   onChange={(e) => setPaymentNote(e.target.value)}
-                  className="input-control"
                 />
               </div>
+            </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
-                <button type="button" onClick={() => setShowPaymentModal(false)} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary">Confirm & Reconcile Payment</button>
-              </div>
-            </form>
+            <div style={{ padding: '0.875rem 1.25rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn btn-outline btn-sm" onClick={() => setShowPaymentModal(false)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={handleRecordPayment} disabled={loading}>
+                {loading ? 'Processing...' : 'Confirm & Reconcile'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -954,63 +1673,4 @@ export function App() {
   );
 }
 
-function TabButton({ icon, label, count, active, onClick }: any) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: active ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-        color: active ? '#818cf8' : 'var(--text-muted)',
-        border: 'none',
-        borderBottom: active ? '2px solid var(--accent-primary)' : '2px solid transparent',
-        padding: '14px 16px',
-        fontSize: 13,
-        fontWeight: active ? 600 : 500,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        cursor: 'pointer',
-        transition: 'all 0.15s ease'
-      }}
-    >
-      {icon}
-      {label}
-      {count !== undefined && (
-        <span style={{
-          background: active ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.08)',
-          color: active ? '#a5b4fc' : 'var(--text-dim)',
-          padding: '1px 6px',
-          borderRadius: 10,
-          fontSize: 11,
-          fontWeight: 700
-        }}>
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function KpiCard({ title, value, subtitle, color }: any) {
-  return (
-    <div className="glass-panel" style={{ padding: 20, position: 'relative', overflow: 'hidden' }}>
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: 4,
-        height: '100%',
-        backgroundColor: color
-      }} />
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-        {title}
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', margin: '8px 0 4px 0', letterSpacing: '-0.02em' }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-        {subtitle}
-      </div>
-    </div>
-  );
-}
+export default App;

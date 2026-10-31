@@ -508,7 +508,7 @@ app.get('/api/v1/invoices/:id/pdf', async (c) => {
 
   const buffer = await generateInvoicePDFBuffer(pdfData);
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',

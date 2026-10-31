@@ -21,7 +21,8 @@ export class BillingService {
 
   /**
    * Executes an idempotent billing run for all subscriptions due on or before targetDate.
-   * Safe against overlapping billing runs using both local mutex and PostgreSQL advisory locks.
+   * Safe against overlapping billing runs using both local mutex and PostgreSQL transaction advisory locks (pg_try_advisory_xact_lock).
+   * Transaction-level advisory locks prevent connection-pool lock leakage and guarantee automatic release on commit or rollback.
    */
   public static async runBillingScan(
     targetDate: string = new Date().toISOString().split('T')[0]
@@ -33,165 +34,161 @@ export class BillingService {
     }
 
     this.isLocallyLocked = true;
-    let lockAcquired = false;
 
     try {
-      // 2. PostgreSQL Distributed Advisory Lock (ensures safety across multiple API/worker containers)
-      const lockRes = await db.execute<{ acquired: boolean }>(
-        sql`SELECT pg_try_advisory_lock(${this.ADVISORY_LOCK_ID}) as acquired`
-      );
-      lockAcquired = !!(lockRes[0]?.acquired);
-
-      if (!lockAcquired) {
-        console.log('⚠️ [BillingService] PostgreSQL advisory lock could not be acquired (concurrent run active). Skipping.');
-        return { generatedCount: 0, skippedCount: 0, invoices: [], skipped: [] };
-      }
-
-      console.log(`🔍 [BillingService] Running billing scan for target date: ${targetDate}`);
-
-      // 3. Find active subscriptions due for billing
-      const dueSubscriptions = await db
-        .select()
-        .from(schema.subscriptions)
-        .where(
-          and(
-            eq(schema.subscriptions.status, 'ACTIVE'),
-            lte(schema.subscriptions.nextBillingDate, targetDate)
-          )
+      return await db.transaction(async (tx) => {
+        // 2. PostgreSQL Distributed Transaction Advisory Lock
+        // Automatically released when the transaction ends (commit or rollback)
+        const lockRes = await tx.execute<{ acquired: boolean }>(
+          sql`SELECT pg_try_advisory_xact_lock(${this.ADVISORY_LOCK_ID}) as acquired`
         );
+        const lockAcquired = !!(lockRes[0]?.acquired);
 
-      const generatedInvoices: Array<typeof schema.invoices.$inferSelect> = [];
-      const skippedDuplicates: Array<{ subscriptionId: string; invoiceNumber: string; reason: string }> = [];
+        if (!lockAcquired) {
+          console.log('⚠️ [BillingService] PostgreSQL advisory xact lock could not be acquired (concurrent run active). Skipping.');
+          return { generatedCount: 0, skippedCount: 0, invoices: [], skipped: [] };
+        }
 
-      for (const sub of dueSubscriptions) {
-        const billingPeriodStart = sub.nextBillingDate;
+        console.log(`🔍 [BillingService] Running billing scan for target date: ${targetDate}`);
 
-        // Fetch plan to determine interval
-        const [plan] = await db
+        // 3. Find active subscriptions due for billing
+        const dueSubscriptions = await tx
           .select()
-          .from(schema.plans)
-          .where(eq(schema.plans.id, sub.planId));
-
-        const interval = (plan ? plan.billingInterval : 'MONTHLY') as BillingInterval;
-        const intervalCount = plan ? plan.intervalCount : 1;
-        const billingPeriodEnd = calculateNextBillingDate(billingPeriodStart, interval, intervalCount);
-
-        // 4. Idempotency Check: prevent duplicate invoice for (subscription_id, billing_period_start)
-        const [existingInvoice] = await db
-          .select()
-          .from(schema.invoices)
+          .from(schema.subscriptions)
           .where(
             and(
-              eq(schema.invoices.subscriptionId, sub.id),
-              eq(schema.invoices.billingPeriodStart, billingPeriodStart)
+              eq(schema.subscriptions.status, 'ACTIVE'),
+              lte(schema.subscriptions.nextBillingDate, targetDate)
             )
           );
 
-        if (existingInvoice) {
-          skippedDuplicates.push({
-            subscriptionId: sub.id,
-            invoiceNumber: existingInvoice.invoiceNumber,
-            reason: 'Invoice already generated for this billing period'
-          });
-          continue;
-        }
+        const generatedInvoices: Array<typeof schema.invoices.$inferSelect> = [];
+        const skippedDuplicates: Array<{ subscriptionId: string; invoiceNumber: string; reason: string }> = [];
 
-        // Fetch subscription line items
-        const subLines = await db
-          .select()
-          .from(schema.subscriptionLines)
-          .where(eq(schema.subscriptionLines.subscriptionId, sub.id));
+        for (const sub of dueSubscriptions) {
+          const billingPeriodStart = sub.nextBillingDate;
 
-        // Fetch customer record for immutable snapshot
-        const [customer] = await db
-          .select()
-          .from(schema.customers)
-          .where(eq(schema.customers.id, sub.customerId));
-
-        // Assemble line item snapshots
-        const invoiceLineItems = [];
-        let invoiceSubtotal = 0;
-
-        for (const line of subLines) {
-          const [product] = await db
+          // Fetch plan to determine interval
+          const [plan] = await tx
             .select()
-            .from(schema.products)
-            .where(eq(schema.products.id, line.productId));
+            .from(schema.plans)
+            .where(eq(schema.plans.id, sub.planId));
 
-          let variantName = null;
-          if (line.variantId) {
-            const [variant] = await db
+          const interval = (plan ? plan.billingInterval : 'MONTHLY') as BillingInterval;
+          const intervalCount = plan ? plan.intervalCount : 1;
+          const billingPeriodEnd = calculateNextBillingDate(billingPeriodStart, interval, intervalCount);
+
+          // 4. Idempotency Check: prevent duplicate invoice for (subscription_id, billing_period_start)
+          const [existingInvoice] = await tx
+            .select()
+            .from(schema.invoices)
+            .where(
+              and(
+                eq(schema.invoices.subscriptionId, sub.id),
+                eq(schema.invoices.billingPeriodStart, billingPeriodStart)
+              )
+            );
+
+          if (existingInvoice) {
+            skippedDuplicates.push({
+              subscriptionId: sub.id,
+              invoiceNumber: existingInvoice.invoiceNumber,
+              reason: 'Invoice already generated for this billing period'
+            });
+            continue;
+          }
+
+          // Fetch subscription line items
+          const subLines = await tx
+            .select()
+            .from(schema.subscriptionLines)
+            .where(eq(schema.subscriptionLines.subscriptionId, sub.id));
+
+          // Fetch customer record for immutable snapshot
+          const [customer] = await tx
+            .select()
+            .from(schema.customers)
+            .where(eq(schema.customers.id, sub.customerId));
+
+          // Assemble line item snapshots
+          const invoiceLineItems = [];
+          let invoiceSubtotal = 0;
+
+          for (const line of subLines) {
+            const [product] = await tx
               .select()
-              .from(schema.productVariants)
-              .where(eq(schema.productVariants.id, line.variantId));
-            if (variant) variantName = variant.name;
+              .from(schema.products)
+              .where(eq(schema.products.id, line.productId));
+
+            let variantName = null;
+            if (line.variantId) {
+              const [variant] = await tx
+                .select()
+                .from(schema.productVariants)
+                .where(eq(schema.productVariants.id, line.variantId));
+              if (variant) variantName = variant.name;
+            }
+
+            const lineTotal = calculateLineTotal(line.unitPrice, line.quantity);
+            invoiceSubtotal += parseFloat(lineTotal);
+
+            // Get tax rate if configured
+            let taxRate = '0.2000'; // Default standard VAT 20%
+            if (line.taxId) {
+              const [tax] = await tx.select().from(schema.taxes).where(eq(schema.taxes.id, line.taxId));
+              if (tax) taxRate = tax.rate;
+            }
+
+            invoiceLineItems.push({
+              productId: line.productId,
+              productNameSnapshot: product ? product.name : 'Subscription Service',
+              variantNameSnapshot: variantName,
+              quantity: line.quantity,
+              unitPriceSnapshot: line.unitPrice,
+              taxRateSnapshot: taxRate,
+              lineTotal
+            });
           }
 
-          const lineTotal = calculateLineTotal(line.unitPrice, line.quantity);
-          invoiceSubtotal += parseFloat(lineTotal);
+          // 5. Evaluate active discounts
+          let appliedDiscountAmount = '0.0000';
+          const [activeDiscount] = await tx
+            .select()
+            .from(schema.discounts)
+            .where(eq(schema.discounts.isActive, true))
+            .limit(1);
 
-          // Get tax rate if configured
-          let taxRate = '0.0000';
-          if (line.taxId) {
-            const [tax] = await db.select().from(schema.taxes).where(eq(schema.taxes.id, line.taxId));
-            if (tax) taxRate = tax.rate;
-          } else {
-            // Default standard VAT 20%
-            taxRate = '0.2000';
+          if (activeDiscount) {
+            appliedDiscountAmount = evaluateDiscount(
+              invoiceSubtotal.toFixed(4),
+              subLines.reduce((acc, l) => acc + l.quantity, 0),
+              {
+                discountType: activeDiscount.discountType as any,
+                value: activeDiscount.value,
+                targetType: activeDiscount.targetType as any,
+                minPurchaseAmount: activeDiscount.minPurchaseAmount,
+                minQuantity: activeDiscount.minQuantity,
+                timesUsed: activeDiscount.timesUsed,
+                maxUses: activeDiscount.maxUses,
+                isActive: true
+              },
+              targetDate
+            );
           }
 
-          invoiceLineItems.push({
-            productId: line.productId,
-            productNameSnapshot: product ? product.name : 'Subscription Service',
-            variantNameSnapshot: variantName,
-            quantity: line.quantity,
-            unitPriceSnapshot: line.unitPrice,
-            taxRateSnapshot: taxRate,
-            lineTotal
-          });
-        }
-
-        // 5. Evaluate active discounts (Scene 5)
-        let appliedDiscountAmount = '0.0000';
-        const [activeDiscount] = await db
-          .select()
-          .from(schema.discounts)
-          .where(eq(schema.discounts.isActive, true))
-          .limit(1);
-
-        if (activeDiscount) {
-          appliedDiscountAmount = evaluateDiscount(
-            invoiceSubtotal.toFixed(4),
-            subLines.reduce((acc, l) => acc + l.quantity, 0),
-            {
-              discountType: activeDiscount.discountType as any,
-              value: activeDiscount.value,
-              targetType: activeDiscount.targetType as any,
-              minPurchaseAmount: activeDiscount.minPurchaseAmount,
-              minQuantity: activeDiscount.minQuantity,
-              timesUsed: activeDiscount.timesUsed,
-              maxUses: activeDiscount.maxUses,
-              isActive: true
-            },
-            targetDate
+          // 6. Calculate invoice financial totals
+          const totals = calculateInvoiceTotals(
+            invoiceLineItems.map((l) => ({ lineTotal: l.lineTotal, taxRate: l.taxRateSnapshot })),
+            appliedDiscountAmount
           );
-        }
 
-        // 6. Calculate invoice financial totals
-        const totals = calculateInvoiceTotals(
-          invoiceLineItems.map((l) => ({ lineTotal: l.lineTotal, taxRate: l.taxRateSnapshot })),
-          appliedDiscountAmount
-        );
+          const invoiceNumber = `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 30);
+          const dueDateStr = dueDate.toISOString().split('T')[0];
 
-        const invoiceNumber = `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30);
-        const dueDateStr = dueDate.toISOString().split('T')[0];
-
-        // 7. Atomic PostgreSQL Transaction
-        const newInvoice = await db.transaction(async (tx) => {
-          // Insert Invoice
-          const [inv] = await tx
+          // 7. Insert Invoice
+          const [newInvoice] = await tx
             .insert(schema.invoices)
             .values({
               invoiceNumber,
@@ -221,7 +218,7 @@ export class BillingService {
           // Insert Invoice Lines
           for (const line of invoiceLineItems) {
             await tx.insert(schema.invoiceLines).values({
-              invoiceId: inv.id,
+              invoiceId: newInvoice.id,
               productId: line.productId,
               productNameSnapshot: line.productNameSnapshot,
               variantNameSnapshot: line.variantNameSnapshot,
@@ -253,31 +250,21 @@ export class BillingService {
               .where(eq(schema.discounts.id, activeDiscount.id));
           }
 
-          return inv;
-        });
-
-        generatedInvoices.push(newInvoice);
-      }
-
-      console.log(
-        `✅ [BillingService] Scan complete. Generated: ${generatedInvoices.length}, Skipped: ${skippedDuplicates.length}`
-      );
-
-      return {
-        generatedCount: generatedInvoices.length,
-        skippedCount: skippedDuplicates.length,
-        invoices: generatedInvoices,
-        skipped: skippedDuplicates
-      };
-    } finally {
-      // Release advisory lock and local lock
-      if (lockAcquired) {
-        try {
-          await db.execute(sql`SELECT pg_advisory_unlock(${this.ADVISORY_LOCK_ID})`);
-        } catch (e) {
-          console.error('Error releasing pg advisory lock:', e);
+          generatedInvoices.push(newInvoice);
         }
-      }
+
+        console.log(
+          `✅ [BillingService] Scan complete. Generated: ${generatedInvoices.length}, Skipped: ${skippedDuplicates.length}`
+        );
+
+        return {
+          generatedCount: generatedInvoices.length,
+          skippedCount: skippedDuplicates.length,
+          invoices: generatedInvoices,
+          skipped: skippedDuplicates
+        };
+      });
+    } finally {
       this.isLocallyLocked = false;
     }
   }

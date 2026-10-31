@@ -10,7 +10,7 @@
     "db:migrate": "pnpm --filter @repo/db db:migrate",
     "db:seed": "pnpm --filter @repo/db db:seed",
     "db:studio": "pnpm --filter @repo/db db:studio",
-    "test": "pnpm --filter @repo/domain test",
+    "test": "pnpm --filter @repo/domain test && pnpm --filter @repo/db test && pnpm --filter @repo/api test",
     "typecheck": "pnpm --recursive exec tsc --noEmit",
     "docker:up": "docker compose -f docker-compose.dev.yml up -d postgres redis",
     "docker:down": "docker compose -f docker-compose.dev.yml down"

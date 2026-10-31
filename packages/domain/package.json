@@ -10,7 +10,8 @@
   "dependencies": {
     "@repo/contracts": "workspace:*",
     "@repo/db": "workspace:*",
-    "decimal.js": "^10.5.0"
+    "decimal.js": "^10.5.0",
+    "drizzle-orm": "^0.39.3"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

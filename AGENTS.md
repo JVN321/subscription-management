@@ -90,12 +90,54 @@ All local development and deployment instances run within Docker containers.
 
 ---
 
-## 6. Every-Edit Checklist
+---
+
+## 6. UI Deslopify & Design Language Standards
+
+1. **Anti-Slop & Zero Gradients**:
+   - **Never** use AI-slop gradients, glassmorphism blur traps, or rainbow backgrounds.
+   - Clean, modern, flat designs with sharp, subtle outlines (`border border-zinc-200 dark:border-zinc-800`).
+   - No heavy solid-color fills where clean outlines and subtle tints work better.
+2. **Authoritative Palette: Orange, White, Black**:
+   - Primary Accent: Precision Orange (`#f97316` / `#ea580c`).
+   - Light Theme: Crisp White / Zinc 50 (`#ffffff`, `#fafafa`), Dark Charcoal text (`#09090b`), Light Zinc borders (`#e4e4e7`).
+   - Dark Theme: Deep Pitch Black / Zinc 950 (`#09090b`, `#18181b`), High-contrast White text (`#fafafa`), Dark Zinc borders (`#27272a`).
+   - High contrast ratios (WCAG AAA compliant) in both modes.
+3. **Theme Switcher**:
+   - Always include a smooth, persistent Light/Dark theme switcher.
+   - Default to sleek modern Light theme.
+4. **Zero Emojis Policy**:
+   - **Never use emojis in the UI** (no 🚀, ⏱️, 🔔, ❌, 💰, etc.).
+   - Always use proper, professional icons from `lucide-react` (e.g. `<RefreshCw />`, `<CreditCard />`, `<FileText />`, `<Users />`, `<Package />`, `<ShieldCheck />`).
+5. **Shadcn Component Architecture**:
+   - Use standard shadcn component primitives (Button, Card, Badge, Input, Table, Tabs, Dialog, Dropdown, Separator).
+   - Do NOT invent bespoke UI widgets or ad-hoc complex components.
+6. **Reactive & Interactive**:
+   - Ensure the UI is reactive, updating instantly on user actions (e.g., immediate status reflections, real-time trigger feedback, quick filter changes).
+
+---
+
+## 7. Comprehensive Testing Mandate
+
+1. **Test Coverage Across All Layers**:
+   - Every API endpoint, database schema constraint, billing calculation, and state mutation must have automated tests.
+   - Layers to cover:
+     - **Domain & Pricing**: Zero floating-point arithmetic, tier evaluations, discount logic, date intervals.
+     - **Database Constraints**: Unique constraints (e.g. `(subscription_id, billing_period_start)`), cascade deletions, check constraints.
+     - **Billing Engine & Scheduler**: Idempotency, Postgres advisory locks, concurrent overlap prevention, invoice generation.
+     - **API HTTP Contracts**: Status codes, input validation with Zod, role enforcement (`admin`, `staff`, `customer`).
+
+---
+
+## 8. Every-Edit Checklist
 
 Before completing any task, verify:
+- [ ] **UI Deslopify**: Zero gradients, zero emojis, proper Lucide icons, sleek light/dark theme switcher, orange/white/black palette, shadcn primitives.
 - [ ] **Ponytail Check**: Did I reinvent something standard library or a known npm package already solves?
 - [ ] **Database Integrity**: Did I review transactional boundaries, decimal precision, and constraints?
+- [ ] **Comprehensive Testing**: Are unit and integration tests passing across API, DB, and domain?
 - [ ] **CodeGraph Sync**: Did I run `codegraph sync .` after modifying source files?
 - [ ] **Documentation Parity**: If an API route, background job, or schema was added/modified, did I update `docs/`?
 - [ ] **Lint & Type Safety**: Does TypeScript compile cleanly without unsafe `any` casts?
 - [ ] **Comment & Docstring Integrity**: Preserved existing comments and added clear JSDoc where public contracts changed.
+

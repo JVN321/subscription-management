@@ -1,250 +1,524 @@
-:root {
-  --bg-primary: #0a0d14;
-  --bg-secondary: #101623;
-  --bg-card: rgba(18, 24, 38, 0.7);
-  --bg-card-hover: rgba(26, 34, 52, 0.85);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(99, 102, 241, 0.5);
+/* ==========================================================================
+   Brightloop Industrial Precision Design System
+   Instrument-Panel Aesthetics • Lufga & JetBrains Mono • Orange-White-Black
+   Zero Slop • Thin Hairline Separators • Precision Density
+   ========================================================================== */
 
-  --accent-primary: #6366f1;
-  --accent-primary-hover: #4f46e5;
-  --accent-cyan: #06b6d4;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.15);
-
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-full: 9999px;
+@font-face {
+  font-family: 'Lufga';
+  src: url('/fonts/lufga/LufgaLight.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
 }
 
+@font-face {
+  font-family: 'Lufga';
+  src: url('/fonts/lufga/LufgaRegular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lufga';
+  src: url('/fonts/lufga/LufgaMedium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lufga';
+  src: url('/fonts/lufga/LufgaSemiBold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lufga';
+  src: url('/fonts/lufga/LufgaBold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lufga';
+  src: url('/fonts/lufga/LufgaExtraBold.woff') format('woff');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ==========================================================================
+   Design Tokens (Light Theme Default)
+   ========================================================================== */
+:root {
+  --font-sans: 'Lufga', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Authoritative Palette: Safety Orange, White, Black, Technical Grays */
+  --brand-orange: #FF6B00;
+  --brand-orange-hover: #E55E00;
+  --brand-orange-subtle: #FFF5EE;
+  --brand-orange-border: #FFD4BA;
+  --brand-orange-text: #C44C00;
+
+  /* Surface Hierarchy (Light Mode) */
+  --bg-canvas: #F8F8F9;
+  --bg-panel: #FFFFFF;
+  --bg-panel-elevated: #FAFAFB;
+  --bg-well: #F2F2F4;
+  --bg-hover: #EBEBEB;
+
+  /* Borders & Dividers */
+  --border-subtle: #E5E5E5;
+  --border-hairline: #EFEFEF;
+  --border-strong: #18181B;
+  --border-focus: #FF6B00;
+
+  /* Typography */
+  --text-primary: #09090B;
+  --text-secondary: #52525B;
+  --text-muted: #9D9D9D;
+  --text-inverse: #FFFFFF;
+
+  /* Semantic Signals */
+  --status-success: #10B981;
+  --status-warning: #F59E0B;
+  --status-danger: #F43F5E;
+  --status-neutral: #71717A;
+
+  /* Restrained Geometry */
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  --transition-fast: 0.12s ease-in-out;
+}
+
+/* Dark Theme Tokens */
+[data-theme="dark"], .dark {
+  --bg-canvas: #09090B;
+  --bg-panel: #121214;
+  --bg-panel-elevated: #161619;
+  --bg-well: #1C1C1F;
+  --bg-hover: #26262B;
+
+  --border-subtle: #27272A;
+  --border-hairline: #1F1F23;
+  --border-strong: #FAFAFA;
+  --border-focus: #FF6B00;
+
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --text-inverse: #09090B;
+
+  --brand-orange-subtle: #261203;
+  --brand-orange-border: #522300;
+  --brand-orange-text: #FF8533;
+}
+
+/* ==========================================================================
+   CSS Reset & Base Rules
+   ========================================================================== */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-main);
+html, body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
   min-height: 100vh;
-  line-height: 1.5;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-  background-image: 
-    radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.07) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.05) 0%, transparent 40%);
-  background-attachment: fixed;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 code, pre, .font-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" on, "zero" on;
 }
 
-/* Glassmorphism card */
-.glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  transition: all 0.2s ease-in-out;
-}
-
-.glass-panel:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-/* Primary Button */
-.btn-primary {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: white;
-  padding: 8px 18px;
+/* ==========================================================================
+   Instrument Panel Containers (Surface Hierarchy)
+   ========================================================================== */
+.instrument-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  font-weight: 600;
-  font-size: 13px;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color var(--transition-fast);
 }
 
-.btn-primary:hover {
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.45);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
-}
-
-/* Secondary Button */
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-main);
-  padding: 8px 16px;
+.instrument-strip {
+  display: flex;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  font-weight: 500;
-  font-size: 13px;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
+  overflow: hidden;
 }
 
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+.instrument-strip-cell {
+  flex: 1;
+  padding: 1.125rem 1.25rem;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-/* Small Button */
-.btn-sm {
-  padding: 5px 12px;
-  font-size: 12px;
+.instrument-strip-cell:last-child {
+  border-right: none;
 }
 
-/* Status Badges */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
+@media (max-width: 900px) {
+  .instrument-strip {
+    flex-direction: column;
+  }
+  .instrument-strip-cell {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .instrument-strip-cell:last-child {
+    border-bottom: none;
+  }
+}
+
+/* ==========================================================================
+   Compact Circular Icon Controls & Buttons
+   ========================================================================== */
+.btn-icon-circle {
+  width: 30px;
+  height: 30px;
   border-radius: var(--radius-full);
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.btn-icon-circle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.btn-icon-circle.active {
+  background: var(--brand-orange-subtle);
+  border-color: var(--brand-orange);
+  color: var(--brand-orange);
+}
+
+/* General Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  height: 2.125rem;
+  padding: 0 0.875rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.btn:focus-visible {
+  border-color: var(--border-focus);
+}
+
+.btn-primary {
+  background-color: var(--brand-orange);
+  color: #FFFFFF;
+  border-color: var(--brand-orange);
   font-weight: 600;
-  letter-spacing: 0.02em;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--brand-orange-hover);
+  border-color: var(--brand-orange-hover);
+}
+
+.btn-dark {
+  background-color: var(--text-primary);
+  color: var(--text-inverse);
+  border-color: var(--text-primary);
+}
+
+.btn-dark:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  border-color: var(--text-secondary);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn-sm {
+  height: 1.875rem;
+  padding: 0 0.625rem;
+  font-size: 0.75rem;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Status Signals & Micro-Badges
+   ========================================================================== */
+.status-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-well);
+  color: var(--text-secondary);
 }
 
-.badge-active {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+.status-signal .signal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
 }
 
-.badge-confirmed {
-  background: rgba(6, 182, 212, 0.15);
-  color: #22d3ee;
-  border: 1px solid rgba(6, 182, 212, 0.3);
+.signal-active {
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #065F46;
+  background: #ECFDF5;
 }
 
-.badge-paid {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+[data-theme="dark"] .signal-active {
+  color: #6EE7B7;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.25);
 }
 
-.badge-overdue {
-  background: rgba(244, 63, 94, 0.18);
-  color: #fb7185;
-  border: 1px solid rgba(244, 63, 94, 0.35);
-  animation: pulse-border 2s infinite;
+.signal-active .signal-dot {
+  background: #10B981;
 }
 
-.badge-paused {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+.signal-warning {
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #92400E;
+  background: #FFFBEB;
 }
 
-.badge-draft {
-  background: rgba(148, 163, 184, 0.12);
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+[data-theme="dark"] .signal-warning {
+  color: #FCD34D;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.25);
 }
 
-@keyframes pulse-border {
-  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+.signal-warning .signal-dot {
+  background: #F59E0B;
 }
 
-/* Custom Data Table */
-.data-table {
+.signal-danger {
+  border-color: rgba(244, 63, 94, 0.3);
+  color: #9F1239;
+  background: #FFF1F2;
+}
+
+[data-theme="dark"] .signal-danger {
+  color: #FDA4AF;
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.25);
+}
+
+.signal-danger .signal-dot {
+  background: #F43F5E;
+}
+
+.signal-orange {
+  border-color: var(--brand-orange-border);
+  color: var(--brand-orange-text);
+  background: var(--brand-orange-subtle);
+}
+
+.signal-orange .signal-dot {
+  background: var(--brand-orange);
+}
+
+/* ==========================================================================
+   Data Tables (Information-Dense Industrial Layout)
+   ========================================================================== */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.table-industrial {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
   text-align: left;
+  font-size: 0.8125rem;
 }
 
-.data-table th {
-  padding: 12px 16px;
-  color: var(--text-dim);
+.table-industrial th {
+  padding: 0.55rem 0.875rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  background: var(--bg-well);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
 }
 
-.data-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  color: var(--text-main);
+.table-industrial td {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--text-primary);
   vertical-align: middle;
 }
 
-.data-table tr:last-child td {
+.table-industrial tr:last-child td {
   border-bottom: none;
 }
 
-.data-table tr:hover td {
-  background-color: rgba(255, 255, 255, 0.02);
+.table-industrial tbody tr:hover {
+  background-color: var(--bg-hover);
 }
 
-/* Inputs & Form Controls */
-.input-control {
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid var(--border);
-  color: var(--text-main);
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
+/* ==========================================================================
+   Industrial Segmented Navigation Pills
+   ========================================================================== */
+.nav-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-well);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.nav-tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.nav-tab-item:hover {
+  color: var(--text-primary);
+}
+
+.nav-tab-item.active {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-weight: 600;
+  border-color: var(--border-subtle);
+}
+
+[data-theme="dark"] .nav-tab-item.active {
+  background: var(--bg-panel);
+  color: #FFFFFF;
+}
+
+/* ==========================================================================
+   Inputs & Form Elements
+   ========================================================================== */
+.input-field {
   width: 100%;
+  height: 2.125rem;
+  padding: 0 0.75rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--transition-fast);
 }
 
-.input-control:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+.input-field:focus {
+  border-color: var(--brand-orange);
 }
 
-/* Modal Backdrop */
-.modal-overlay {
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Dialog / Modal System
+   ========================================================================== */
+.dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 1rem;
 }
 
-.modal-content {
-  background: #111827;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+.dialog-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   width: 100%;
-  max-width: 540px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
 }
