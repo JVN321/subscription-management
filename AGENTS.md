@@ -6,6 +6,24 @@
 
 ---
 
+## 0. Prime Directives (Non-Negotiable)
+
+1. **Always Use and Follow AGENTS.md**:
+   - Before taking any action, planning, coding, refactoring, or generating documentation, agents MUST consult and strictly adhere to this file.
+   - Every architectural, testing, and UI rule in this document is authoritative and supersedes generic defaults.
+
+2. **Absolute Zero Emojis Policy (Everywhere)**:
+   - **Never** use emojis in any context within this repository or during user interaction.
+   - Prohibited in:
+     - User interface (labels, badges, toasts, headers, tables, buttons).
+     - Documentation (README, markdown files, guides, tasklogs).
+     - Git commit messages and PR descriptions.
+     - Code comments, docstrings, and log messages.
+     - Agent chat responses and explanations.
+   - Use plain text, standard markdown indicators like `[x]` or `YES`, or standard Lucide SVG icons in frontend code. Zero exceptions.
+
+---
+
 ## 1. Core Engineering Philosophy: The Ponytail Rule (YAGNI & Simplicity)
 
 1. **Do Not Reinvent the Wheel**:
@@ -145,7 +163,7 @@ Do not add elements simply to make a page look more populated, modern, technical
 
 ### 6.7 Icons and Decorative Shapes
 - Use icons from `lucide-react` to improve recognition or reduce label length, not as decoration.
-- Never use emojis in the UI (no 🚀, ⏱️, 🔔, ❌, 💰, etc.).
+- Never use emojis anywhere in the UI or codebase (no rocket, clock, bell, cross, moneybag, checkmark, or other emoji characters).
 - Avoid arbitrary circles, dots, rings, sparkles, crosses, and geometric ornaments.
 
 ### 6.8 Cards, Panels, and Borders
@@ -207,6 +225,8 @@ When asked to create or redesign UI, apply this standard proactively. Do not wai
 ## 8. Every-Edit Checklist
 
 Before completing any task, verify:
+- [ ] **Always Consult AGENTS.md**: Ensured all directives in this document were followed throughout the task.
+- [ ] **Zero Emojis Policy**: Verified zero emojis across UI, code, markdown documentation, commit messages, comments, and agent outputs.
 - [ ] **UI Deslopify**: Zero gradients, zero emojis, proper Lucide icons, sleek light/dark theme switcher, orange/white/black palette, shadcn primitives.
 - [ ] **Ponytail Check**: Did I reinvent something standard library or a known npm package already solves?
 - [ ] **Database Integrity**: Did I review transactional boundaries, decimal precision, and constraints?
