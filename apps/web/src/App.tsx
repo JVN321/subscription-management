@@ -60,6 +60,7 @@ export function App() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [selectedVariant, setSelectedVariant] = useState('');
   const [quantity, setQuantity] = useState(5);
+  const [portalCustomerId, setPortalCustomerId] = useState('');
 
   // Theme Sync
   useEffect(() => {
@@ -117,7 +118,10 @@ export function App() {
       }
       if (custsRes?.data) {
         setCustomers(custsRes.data);
-        if (custsRes.data[0]) setSelectedCustomer(custsRes.data[0].id);
+        if (custsRes.data[0]) {
+          setSelectedCustomer(custsRes.data[0].id);
+          setPortalCustomerId((prev) => prev || custsRes.data[0].id);
+        }
       }
     } catch (e) {
       console.error('Error fetching data:', e);
@@ -261,10 +265,11 @@ export function App() {
     }
   };
 
+  const activeCustomer = customers.find((c) => c.id === (portalCustomerId || customers[0]?.id)) || customers[0];
   const customerPortalData = {
-    customer: customers.find((c) => c.contactName?.toLowerCase().includes('sarah') || c.id === selectedCustomer) || customers[0],
-    subs: subscriptions.filter((s) => s.customerId === customers[0]?.id || customers.length === 1),
-    invs: invoices.filter((i) => i.customerId === customers[0]?.id || customers.length === 1)
+    customer: activeCustomer,
+    subs: subscriptions.filter((s) => s.customerId === activeCustomer?.id),
+    invs: invoices.filter((i) => i.customerId === activeCustomer?.id)
   };
 
   const upcomingRenewals = subscriptions
@@ -402,7 +407,15 @@ export function App() {
               <span style={{ color: 'var(--text-muted)', marginRight: '0.25rem' }}>Role:</span>
               <select
                 value={currentRole}
-                onChange={(e) => setCurrentRole(e.target.value as any)}
+                onChange={(e) => {
+                  const newRole = e.target.value as any;
+                  setCurrentRole(newRole);
+                  if (newRole === 'customer') {
+                    setActiveTab('portal');
+                  } else if (activeTab === 'portal') {
+                    setActiveTab('dashboard');
+                  }
+                }}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -1128,7 +1141,7 @@ export function App() {
         {activeTab === 'portal' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="instrument-panel" style={{ padding: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <div>
                   <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>
                     {customerPortalData.customer?.companyName || 'Customer Portal'}
@@ -1138,21 +1151,52 @@ export function App() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
-                  <div className="instrument-panel" style={{ padding: '0.375rem 0.75rem' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Agreements: </span>
-                    <span style={{ fontWeight: 700 }}>{customerPortalData.subs.length}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Account:</span>
+                    <select
+                      value={customerPortalData.customer?.id || ''}
+                      onChange={(e) => setPortalCustomerId(e.target.value)}
+                      style={{
+                        backgroundColor: 'var(--bg-well)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-xs)',
+                        padding: '0.25rem 0.5rem',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.companyName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="instrument-panel" style={{ padding: '0.375rem 0.75rem' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Invoices: </span>
-                    <span style={{ fontWeight: 700 }}>{customerPortalData.invs.length}</span>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
+                    <div className="instrument-panel" style={{ padding: '0.375rem 0.75rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Agreements: </span>
+                      <span style={{ fontWeight: 700 }}>{customerPortalData.subs.length}</span>
+                    </div>
+                    <div className="instrument-panel" style={{ padding: '0.375rem 0.75rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Invoices: </span>
+                      <span style={{ fontWeight: 700 }}>{customerPortalData.invs.length}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>Subscriptions</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 700 }}>Subscriptions</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {customerPortalData.subs.filter((s) => s.status === 'ACTIVE').length} active
+                </span>
+              </div>
               <div className="table-wrapper">
                 <table className="table-industrial">
                   <thead>
@@ -1162,31 +1206,54 @@ export function App() {
                       <th>Start Date</th>
                       <th>Next Billing Date</th>
                       <th>Terms</th>
+                      <th style={{ textAlign: 'right' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {customerPortalData.subs.map((s) => (
-                      <tr key={s.id}>
-                        <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{s.subscriptionNumber}</td>
-                        <td>
-                          <span className="status-signal signal-active">
-                            <span>{s.status}</span>
-                          </span>
+                    {customerPortalData.subs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>
+                          No active subscriptions for this account.
                         </td>
-                        <td style={{ fontFamily: 'var(--font-mono)' }}>{s.startDate}</td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)' }}>
-                          {s.nextBillingDate}
-                        </td>
-                        <td>{s.paymentTerms}</td>
                       </tr>
-                    ))}
+                    ) : (
+                      customerPortalData.subs.map((s) => (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{s.subscriptionNumber}</td>
+                          <td>
+                            <span className={`status-signal ${s.status === 'ACTIVE' ? 'signal-active' : 'signal-warning'}`}>
+                              <span>{s.status}</span>
+                            </span>
+                          </td>
+                          <td style={{ fontFamily: 'var(--font-mono)' }}>{s.startDate}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)' }}>
+                            {s.nextBillingDate}
+                          </td>
+                          <td>{s.paymentTerms}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleToggleSubStatus(s.id, s.status)}
+                            >
+                              {s.status === 'ACTIVE' ? <Pause size={10} /> : <Play size={10} />}
+                              <span>{s.status === 'ACTIVE' ? 'Pause' : 'Resume'}</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
             <div>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>Invoice Statements</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 700 }}>Invoice Statements</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {customerPortalData.invs.length} total statements
+                </span>
+              </div>
               <div className="table-wrapper">
                 <table className="table-industrial">
                   <thead>
@@ -1196,39 +1263,63 @@ export function App() {
                       <th>Billing Period</th>
                       <th>Status</th>
                       <th style={{ textAlign: 'right' }}>Total</th>
-                      <th style={{ textAlign: 'center' }}>PDF</th>
+                      <th style={{ textAlign: 'right' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {customerPortalData.invs.map((inv) => (
-                      <tr key={inv.id}>
-                        <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
-                        <td style={{ fontFamily: 'var(--font-mono)' }}>{inv.issueDate}</td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                          {inv.billingPeriodStart} to {inv.billingPeriodEnd}
-                        </td>
-                        <td>
-                          <span className={`status-signal ${inv.status === 'PAID' ? 'signal-active' : 'signal-orange'}`}>
-                            <span>{inv.status}</span>
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-                          ${parseFloat(inv.totalAmount).toFixed(2)}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <a
-                            href={`${API_BASE}/invoices/${inv.id}/pdf`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn btn-primary btn-sm"
-                            style={{ height: '1.5rem', padding: '0 0.5rem', fontSize: '0.6875rem' }}
-                          >
-                            <Download size={10} />
-                            <span>PDF</span>
-                          </a>
+                    {customerPortalData.invs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>
+                          No invoices recorded for this account.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      customerPortalData.invs.map((inv) => (
+                        <tr key={inv.id}>
+                          <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)' }}>{inv.issueDate}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            {inv.billingPeriodStart} to {inv.billingPeriodEnd}
+                          </td>
+                          <td>
+                            <span className={`status-signal ${inv.status === 'PAID' ? 'signal-active' : 'signal-orange'}`}>
+                              <span>{inv.status}</span>
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+                            ${parseFloat(inv.totalAmount).toFixed(2)}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+                              {inv.status !== 'PAID' && (
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => {
+                                    setSelectedInvoice(inv);
+                                    setPaymentAmount(inv.outstandingAmount || inv.totalAmount);
+                                    setShowPaymentModal(true);
+                                  }}
+                                  style={{ height: '1.5rem', padding: '0 0.5rem', fontSize: '0.6875rem' }}
+                                >
+                                  <CreditCard size={10} />
+                                  <span>Pay</span>
+                                </button>
+                              )}
+                              <a
+                                href={`${API_BASE}/invoices/${inv.id}/pdf`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-primary btn-sm"
+                                style={{ height: '1.5rem', padding: '0 0.5rem', fontSize: '0.6875rem' }}
+                              >
+                                <Download size={10} />
+                                <span>PDF</span>
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
