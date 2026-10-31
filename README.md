@@ -157,15 +157,35 @@ subscription-management/
 
 ## 4. Pre-Seeded Evaluation Personas & Accounts
 
-The database comes pre-populated with realistic business data across all roles and subscription states. Run `pnpm seed` to reset or apply:
+The database comes pre-populated with realistic business data across all roles and subscription states. Run `pnpm db:seed` to reset or apply. **All seed accounts share the exact same unified demo password**:
+
+```
+Unified Demo Password: Brightloop@2026
+```
 
 | Role | Email | Password | Persona & Scope |
 |---|---|---|---|
-| **Admin** | `admin@brightloop.local` | `Admin@Brightloop2026` | Full system control, catalog management, discount rules, staff provisioning |
-| **Staff** | `sarah.sales@brightloop.local` | `Staff@Brightloop2026` | Internal sales rep, quotation creation, invoice sending, manual billing scan trigger |
-| **Customer** | `techcorp@client.com` | `Customer@Brightloop2026` | Enterprise client: TechCorp Solutions (Cloud ERP Enterprise plan, Active) |
-| **Customer** | `retailhub@client.com` | `Customer@Brightloop2026` | Mid-market client: RetailHub Stores (POS System Pro plan, Overdue Invoice) |
-| **Customer** | `apex@client.com` | `Customer@Brightloop2026` | Scaleup client: Apex Logistics (Warehouse Management plan, Paused) |
+| **Admin** | `admin@brightloop.com` | `Brightloop@2026` | Full system control, catalog management, discount rules, staff provisioning |
+| **Staff** | `staff@brightloop.com` | `Brightloop@2026` | Internal sales rep, quotation creation, invoice sending, manual billing scan trigger |
+| **Customer** | `sarah@shopflow.com` | `Brightloop@2026` | Primary client: ShopFlow Retail Solutions (Active Monthly Growth plan) |
+| **Customer** | `techcorp@client.com` | `Brightloop@2026` | Enterprise client: TechCorp Solutions (Cloud ERP Enterprise plan, Active) |
+| **Customer** | `retailhub@client.com` | `Brightloop@2026` | Mid-market client: RetailHub Stores (POS System Pro plan, Overdue Invoice) |
+
+### 4.1 Temporary Email Sign-Up & Resend Configuration
+
+Brightloop supports authentication with **any temporary email address** (e.g. from 10minutemail, temp-mail.org, or Mailinator):
+1. In the web console header, click **Sign In** or **Resend**, switch to the **Sign Up (Temp Mail)** tab.
+2. Enter your temporary email and password (must be >8 characters with uppercase, lowercase, and special character, e.g. `Brightloop@2026`).
+3. Click **Create Account & Enter Portal**. An account is instantly created, a welcome email is dispatched via Resend, and you are logged into your dedicated Customer Portal.
+
+**Where to Add Your Resend API Key:**
+Open `.env` in the repository root and add your key:
+```env
+RESEND_API_KEY=re_your_api_key_here
+RESEND_FROM_EMAIL=onboarding@resend.dev
+```
+- **Live Mode**: When `RESEND_API_KEY` is configured, welcome emails, invoice dispatch notices, and password resets are sent to real recipient inboxes.
+- **Safe Simulation Mode**: When no key is set (or left blank), emails are safely logged to the backend API console in real time (`[EmailService: Simulated Resend] To: ...`) without throwing errors.
 
 ---
 

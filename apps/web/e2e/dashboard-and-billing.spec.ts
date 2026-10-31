@@ -4,7 +4,7 @@ test.describe('Brightloop Subscription Platform E2E Tests (Playwright)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     // Wait for main dashboard to be visible
-    await expect(page.locator('text=BRIGHTLOOP')).toBeVisible();
+    await expect(page.getByText('BRIGHTLOOP', { exact: true })).toBeVisible();
   });
 
   test('loads dashboard with industrial precision design system and metric strip', async ({ page }) => {

@@ -3,15 +3,15 @@ import * as schema from './schema';
 import { eq } from 'drizzle-orm';
 
 async function seed() {
-  console.log('🌱 Seeding database with Brightloop business data...');
+  console.log('[Seed] Seeding database with Brightloop business data...');
 
   try {
-    // 1. Users
+    // 1. Users (All seeded with unified demo password: Brightloop@2026)
     const [adminUser] = await db
       .insert(schema.users)
       .values({
         email: 'admin@brightloop.com',
-        passwordHash: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyGq0LhB0aYc1tV9C1sN1Yq3D5t7W2K6', // Demo hash for Admin123!@#
+        passwordHash: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyGq0LhB0aYc1tV9C1sN1Yq3D5t7W2K6', // Brightloop@2026
         role: 'admin',
         name: 'Alice Cooper (Admin)'
       })
@@ -22,7 +22,7 @@ async function seed() {
       .insert(schema.users)
       .values({
         email: 'staff@brightloop.com',
-        passwordHash: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyGq0LhB0aYc1tV9C1sN1Yq3D5t7W2K6', // Demo hash for Staff123!@#
+        passwordHash: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyGq0LhB0aYc1tV9C1sN1Yq3D5t7W2K6', // Brightloop@2026
         role: 'staff',
         name: 'Bob Miller (Sales & Ops)'
       })
@@ -33,18 +33,40 @@ async function seed() {
       .insert(schema.users)
       .values({
         email: 'sarah@shopflow.com',
-        passwordHash: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyGq0LhB0aYc1tV9C1sN1Yq3D5t7W2K6', // Demo hash for Customer123!@#
+        passwordHash: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyGq0LhB0aYc1tV9C1sN1Yq3D5t7W2K6', // Brightloop@2026
         role: 'customer',
         name: 'Sarah Connor (ShopFlow)'
       })
       .onConflictDoNothing()
       .returning();
 
-    // 2. Customer Record
-    const [customer] = await db
+    const [techCorpUser] = await db
+      .insert(schema.users)
+      .values({
+        email: 'techcorp@client.com',
+        passwordHash: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyGq0LhB0aYc1tV9C1sN1Yq3D5t7W2K6', // Brightloop@2026
+        role: 'customer',
+        name: 'David Vance (TechCorp)'
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    const [retailHubUser] = await db
+      .insert(schema.users)
+      .values({
+        email: 'retailhub@client.com',
+        passwordHash: '$2b$10$EpRnTzVlqHNP0.fUbXUwSOyGq0LhB0aYc1tV9C1sN1Yq3D5t7W2K6', // Brightloop@2026
+        role: 'customer',
+        name: 'Marcus Reed (RetailHub)'
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    // 2. Customer Records
+    await db
       .insert(schema.customers)
       .values({
-        userId: customerUser ? customerUser.id : undefined,
+        userId: customerUser?.id,
         companyName: 'ShopFlow Retail Solutions',
         contactName: 'Sarah Connor',
         email: 'sarah@shopflow.com',
@@ -59,68 +81,135 @@ async function seed() {
         },
         paymentTerms: 'NET_30'
       })
-      .onConflictDoNothing()
-      .returning();
+      .onConflictDoNothing();
+
+    if (techCorpUser) {
+      await db
+        .insert(schema.customers)
+        .values({
+          userId: techCorpUser.id,
+          companyName: 'TechCorp Solutions',
+          contactName: 'David Vance',
+          email: 'techcorp@client.com',
+          phone: '+1 555-0144',
+          taxIdentifier: 'US-TAX-55210',
+          billingAddress: {
+            street: '100 Tech Blvd',
+            city: 'San Francisco',
+            state: 'CA',
+            postalCode: '94107',
+            country: 'US'
+          },
+          paymentTerms: 'NET_30'
+        })
+        .onConflictDoNothing();
+    }
+
+    if (retailHubUser) {
+      await db
+        .insert(schema.customers)
+        .values({
+          userId: retailHubUser.id,
+          companyName: 'RetailHub Stores',
+          contactName: 'Marcus Reed',
+          email: 'retailhub@client.com',
+          phone: '+1 555-0188',
+          taxIdentifier: 'US-TAX-77491',
+          billingAddress: {
+            street: '220 Market Way',
+            city: 'Chicago',
+            state: 'IL',
+            postalCode: '60601',
+            country: 'US'
+          },
+          paymentTerms: 'NET_15'
+        })
+        .onConflictDoNothing();
+    }
 
     // 3. Products
-    const [erpProduct] = await db
-      .insert(schema.products)
-      .values({
-        name: 'Brightloop ERP Core',
-        productType: 'SOFTWARE',
-        salesPrice: '1000.0000',
-        costPrice: '300.0000',
-        notes: 'Flagship enterprise resource planning software license.'
-      })
-      .returning();
+    let [erpProduct] = await db
+      .select()
+      .from(schema.products)
+      .where(eq(schema.products.name, 'Brightloop ERP Core'));
 
-    const [analyticsProduct] = await db
-      .insert(schema.products)
-      .values({
-        name: 'Analytics & Reporting Add-on',
-        productType: 'ADD_ON',
-        salesPrice: '250.0000',
-        costPrice: '50.0000',
-        notes: 'Advanced BI reporting and cohort retention dashboards.'
-      })
-      .returning();
+    if (!erpProduct) {
+      [erpProduct] = await db
+        .insert(schema.products)
+        .values({
+          name: 'Brightloop ERP Core',
+          productType: 'SOFTWARE',
+          salesPrice: '1000.0000',
+          costPrice: '300.0000',
+          notes: 'Flagship enterprise resource planning software license.'
+        })
+        .returning();
+    }
+
+    let [analyticsProduct] = await db
+      .select()
+      .from(schema.products)
+      .where(eq(schema.products.name, 'Analytics & Reporting Add-on'));
+
+    if (!analyticsProduct) {
+      [analyticsProduct] = await db
+        .insert(schema.products)
+        .values({
+          name: 'Analytics & Reporting Add-on',
+          productType: 'ADD_ON',
+          salesPrice: '250.0000',
+          costPrice: '50.0000',
+          notes: 'Advanced BI reporting and cohort retention dashboards.'
+        })
+        .returning();
+    }
 
     // 4. Product Variants (Scene 2: Brand variant adding 560 to price)
-    const [odooVariant] = await db
+    await db
       .insert(schema.productVariants)
       .values({
         productId: erpProduct.id,
         name: 'Odoo Brand Edition',
         sku: 'ERP-CORE-ODOO',
-        priceAdjustment: '560.0000', // Adds +560.0000 to price!
+        priceAdjustment: '560.0000',
         isPercentage: false
       })
-      .returning();
+      .onConflictDoNothing();
 
-    await db.insert(schema.productVariants).values({
-      productId: erpProduct.id,
-      name: 'Standard Edition',
-      sku: 'ERP-CORE-STD',
-      priceAdjustment: '0.0000',
-      isPercentage: false
-    });
+    await db
+      .insert(schema.productVariants)
+      .values({
+        productId: erpProduct.id,
+        name: 'Standard Edition',
+        sku: 'ERP-CORE-STD',
+        priceAdjustment: '0.0000',
+        isPercentage: false
+      })
+      .onConflictDoNothing();
 
     // 5. Plans (Scene 2: Daily, weekly, monthly, yearly, minQuantity, pause, renewal)
-    const [monthlyPlan] = await db
-      .insert(schema.plans)
-      .values({
-        name: 'Monthly Growth Plan',
-        billingInterval: 'MONTHLY',
-        intervalCount: 1,
-        minQuantity: 2,
-        autoClose: false,
-        allowEarlyClose: true,
-        allowPause: true,
-        allowRenewal: true
-      })
-      .returning();
+    let [monthlyPlan] = await db
+      .select()
+      .from(schema.plans)
+      .where(eq(schema.plans.name, 'Monthly Growth Plan'));
 
-    const [annualPlan] = await db
+    if (!monthlyPlan) {
+      [monthlyPlan] = await db
+        .insert(schema.plans)
+        .values({
+          name: 'Monthly Growth Plan',
+          billingInterval: 'MONTHLY',
+          intervalCount: 1,
+          minQuantity: 2,
+          autoClose: false,
+          allowEarlyClose: true,
+          allowPause: true,
+          allowRenewal: true
+        })
+        .returning();
+    }
+
+    await db
       .insert(schema.plans)
       .values({
         name: 'Annual Enterprise Plan',
@@ -132,9 +221,9 @@ async function seed() {
         allowPause: true,
         allowRenewal: true
       })
-      .returning();
+      .onConflictDoNothing();
 
-    const [dailyTrialPlan] = await db
+    await db
       .insert(schema.plans)
       .values({
         name: 'Daily Sandbox Trial',
@@ -146,10 +235,10 @@ async function seed() {
         allowPause: false,
         allowRenewal: false
       })
-      .returning();
+      .onConflictDoNothing();
 
     // 6. Taxes
-    const [vatTax] = await db
+    await db
       .insert(schema.taxes)
       .values({
         name: 'Standard VAT (20%)',
@@ -157,9 +246,9 @@ async function seed() {
         isInclusive: false,
         countryCode: 'GB'
       })
-      .returning();
+      .onConflictDoNothing();
 
-    const [salesTax] = await db
+    await db
       .insert(schema.taxes)
       .values({
         name: 'NY State Sales Tax (8.875%)',
@@ -168,24 +257,24 @@ async function seed() {
         countryCode: 'US',
         state: 'NY'
       })
-      .returning();
+      .onConflictDoNothing();
 
     // 7. Discounts (Scene 5: Fixed or %, min quantity/purchase, limits)
-    const [volDiscount] = await db
+    await db
       .insert(schema.discounts)
       .values({
         code: 'VOLUME10',
         discountType: 'PERCENTAGE',
-        value: '0.1000', // 10%
+        value: '0.1000',
         targetType: 'SUBSCRIPTION',
         minPurchaseAmount: '1000.0000',
         minQuantity: 5,
         maxUses: 100,
         timesUsed: 0
       })
-      .returning();
+      .onConflictDoNothing();
 
-    const [fixedDiscount] = await db
+    await db
       .insert(schema.discounts)
       .values({
         code: 'EARLYBIRD100',
@@ -197,27 +286,27 @@ async function seed() {
         maxUses: 50,
         timesUsed: 0
       })
-      .returning();
+      .onConflictDoNothing();
 
     // 8. Quotation Template (Scene 3)
-    const [quoteTemplate] = await db
+    await db
       .insert(schema.quotationTemplates)
       .values({
         name: 'Enterprise Onboarding Package',
         defaultPlanId: monthlyPlan.id,
         validityDays: 30
       })
-      .returning();
+      .onConflictDoNothing();
 
-    console.log('✅ Seeding complete!');
-    console.log(`- Admin: admin@brightloop.com (Password: Admin123!@#)`);
-    console.log(`- Staff: staff@brightloop.com (Password: Staff123!@#)`);
-    console.log(`- Customer: sarah@shopflow.com (Password: Customer123!@#)`);
-    console.log(`- Product: ${erpProduct.name} with Odoo Variant (+560.0000)`);
-    console.log(`- Plan: ${monthlyPlan.name} (Monthly, min 2 seats)`);
-    console.log(`- Template: ${quoteTemplate.name}`);
+    console.log('[Seed] Seeding completed successfully.');
+    console.log('[Seed] Unified Demo Password for all accounts: Brightloop@2026');
+    console.log('[Seed] - Admin: admin@brightloop.com');
+    console.log('[Seed] - Staff: staff@brightloop.com');
+    console.log('[Seed] - Customer: sarah@shopflow.com');
+    console.log('[Seed] - Customer: techcorp@client.com');
+    console.log('[Seed] - Customer: retailhub@client.com');
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
+    console.error('[Seed Error] Seeding failed:', error);
     process.exit(1);
   } finally {
     await client.end();

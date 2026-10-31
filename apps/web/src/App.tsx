@@ -19,7 +19,12 @@ import {
   Sun,
   Moon,
   Search,
-  DollarSign
+  DollarSign,
+  Mail,
+  Key,
+  LogIn,
+  LogOut,
+  Send
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:3001/api/v1';
@@ -73,6 +78,27 @@ export function App() {
     localStorage.setItem('brightloop_theme', theme);
   }, [theme]);
 
+  // Authentication & Session State
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot' | 'resend_info'>('signin');
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; name: string; role: 'admin' | 'staff' | 'customer' } | null>(() => {
+    const saved = localStorage.getItem('brightloop_user');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { return null; }
+    }
+    return { id: 'admin-1', email: 'admin@brightloop.com', name: 'Alice Cooper (Admin)', role: 'admin' };
+  });
+
+  const [loginEmail, setLoginEmail] = useState('admin@brightloop.com');
+  const [loginPassword, setLoginPassword] = useState('Brightloop@2026');
+  const [signupName, setSignupName] = useState('');
+  const [signupCompany, setSignupCompany] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('Brightloop@2026');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
@@ -80,6 +106,131 @@ export function App() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleSignIn = async (emailOverride?: string, passwordOverride?: string) => {
+    const emailToUse = emailOverride || loginEmail;
+    const passwordToUse = passwordOverride || loginPassword;
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const res = await fetch(`${API_BASE}/auth/sign-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToUse, password: passwordToUse })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setAuthError(data.error?.message || 'Invalid credentials');
+        return;
+      }
+      const user = data.data.user;
+      setCurrentUser(user);
+      setCurrentRole(user.role);
+      localStorage.setItem('brightloop_user', JSON.stringify(user));
+      if (data.data.customer) {
+        setPortalCustomerId(data.data.customer.id);
+      }
+      if (user.role === 'customer') {
+        setActiveTab('portal');
+      } else {
+        setActiveTab('dashboard');
+      }
+      setShowAuthModal(false);
+      showToast(`Signed in as ${user.email} (${user.role.toUpperCase()})`);
+      loadData();
+    } catch (err) {
+      setAuthError('Connection failed to backend API');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!signupEmail || !signupPassword) {
+      setAuthError('Email and password are required');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const res = await fetch(`${API_BASE}/auth/sign-up`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: signupEmail,
+          password: signupPassword,
+          name: signupName || signupEmail.split('@')[0],
+          companyName: signupCompany || 'Client Account',
+          role: 'customer'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setAuthError(data.error?.message || 'Registration failed');
+        return;
+      }
+      const user = data.data.user;
+      setCurrentUser(user);
+      setCurrentRole('customer');
+      localStorage.setItem('brightloop_user', JSON.stringify(user));
+      if (data.data.customer) {
+        setPortalCustomerId(data.data.customer.id);
+      }
+      setActiveTab('portal');
+      setShowAuthModal(false);
+      showToast(`Account created for ${user.email}! Welcome email dispatched via Resend.`);
+      loadData();
+    } catch (err) {
+      setAuthError('Registration connection failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail) {
+      setAuthError('Please enter an email address');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail })
+      });
+      const data = await res.json();
+      showToast(data.data?.message || 'Password reset link dispatched via Resend.');
+      setAuthMode('signin');
+    } catch (err) {
+      setAuthError('Failed to dispatch reset email');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSendInvoiceEmail = async (invoiceId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${invoiceId}/send`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.data) {
+        showToast(`Invoice sent to ${data.data.recipient} (${data.data.mode === 'live' ? 'Live via Resend' : 'Simulated'})`);
+      }
+    } catch (e) {
+      showToast('Failed to send invoice email');
+    }
+  };
+
+  const handleSignOut = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('brightloop_user');
+    showToast('Signed out of Brightloop console');
+    setShowAuthModal(true);
+    setAuthMode('signin');
   };
 
   const loadData = async () => {
@@ -392,6 +543,31 @@ export function App() {
 
             <div style={{ height: '14px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
 
+            {/* Resend Email Integration Trigger */}
+            <button
+              onClick={() => {
+                setAuthMode('resend_info');
+                setShowAuthModal(true);
+              }}
+              title="Resend Email Service Setup"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                backgroundColor: 'var(--bg-well)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-xs)',
+                padding: '0 0.5rem',
+                height: '1.75rem',
+                fontSize: '0.75rem',
+                color: 'var(--text-primary)',
+                cursor: 'pointer'
+              }}
+            >
+              <Mail size={12} color="var(--brand-orange)" />
+              <span style={{ fontWeight: 600 }}>Resend</span>
+            </button>
+
             <div
               style={{
                 display: 'flex',
@@ -431,6 +607,83 @@ export function App() {
                 <option value="customer">Customer</option>
               </select>
             </div>
+
+            {/* User Session / Email Login Pill */}
+            {currentUser ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  backgroundColor: 'var(--bg-panel-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-xs)',
+                  padding: '0 0.5rem',
+                  height: '1.75rem',
+                  fontSize: '0.75rem'
+                }}
+              >
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--brand-orange)' }} />
+                <span
+                  style={{
+                    maxWidth: '130px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 500,
+                    color: 'var(--text-primary)'
+                  }}
+                  title={currentUser.email}
+                >
+                  {currentUser.email}
+                </span>
+                <button
+                  onClick={() => {
+                    setAuthMode('signin');
+                    setShowAuthModal(true);
+                  }}
+                  title="Switch User / Account"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Users size={11} />
+                </button>
+                <button
+                  onClick={handleSignOut}
+                  title="Sign Out"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <LogOut size={11} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setAuthMode('signin');
+                  setShowAuthModal(true);
+                }}
+                className="btn btn-primary"
+                style={{ height: '1.75rem', padding: '0 0.625rem', fontSize: '0.75rem' }}
+              >
+                <LogIn size={11} style={{ marginRight: '0.25rem' }} />
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -647,16 +900,26 @@ export function App() {
                                 ${outstanding.toFixed(2)}
                               </td>
                               <td style={{ textAlign: 'center' }}>
-                                <a
-                                  href={`${API_BASE}/invoices/${inv.id}/pdf`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="btn-icon-circle"
-                                  title="Download PDF"
-                                  style={{ width: '22px', height: '22px' }}
-                                >
-                                  <Download size={10} />
-                                </a>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <a
+                                    href={`${API_BASE}/invoices/${inv.id}/pdf`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn-icon-circle"
+                                    title="Download PDF"
+                                    style={{ width: '22px', height: '22px' }}
+                                  >
+                                    <Download size={10} />
+                                  </a>
+                                  <button
+                                    onClick={() => handleSendInvoiceEmail(inv.id)}
+                                    className="btn-icon-circle"
+                                    title="Dispatch Invoice Email via Resend"
+                                    style={{ width: '22px', height: '22px' }}
+                                  >
+                                    <Mail size={10} color="var(--brand-orange)" />
+                                  </button>
+                                </div>
                               </td>
                               <td style={{ textAlign: 'right' }}>
                                 {!isPaid ? (
@@ -1489,6 +1752,319 @@ export function App() {
               <button className="btn btn-primary btn-sm" onClick={handleRecordPayment} disabled={loading}>
                 {loading ? 'Recording...' : 'Confirm Payment'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: AUTHENTICATION & RESEND EMAIL SETUP */}
+      {showAuthModal && (
+        <div className="dialog-backdrop">
+          <div className="dialog-panel" style={{ maxWidth: '480px' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0 }}>
+                  {authMode === 'signin' && 'Sign In to Brightloop'}
+                  {authMode === 'signup' && 'Create Account (Any / Temp Email)'}
+                  {authMode === 'forgot' && 'Reset Password'}
+                  {authMode === 'resend_info' && 'Resend Email Service Setup'}
+                </h3>
+                <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '0.125rem 0 0 0' }}>
+                  Industrial Precision Subscription Management Platform
+                </p>
+              </div>
+              <button className="btn-icon-circle" onClick={() => setShowAuthModal(false)}>✕</button>
+            </div>
+
+            {/* Mode Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-well)' }}>
+              <button
+                onClick={() => { setAuthMode('signin'); setAuthError(null); }}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  background: authMode === 'signin' ? 'var(--bg-panel-elevated)' : 'transparent',
+                  color: authMode === 'signin' ? 'var(--brand-orange)' : 'var(--text-muted)',
+                  borderBottom: authMode === 'signin' ? '2px solid var(--brand-orange)' : '2px solid transparent',
+                  cursor: 'pointer'
+                }}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => { setAuthMode('signup'); setAuthError(null); }}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  background: authMode === 'signup' ? 'var(--bg-panel-elevated)' : 'transparent',
+                  color: authMode === 'signup' ? 'var(--brand-orange)' : 'var(--text-muted)',
+                  borderBottom: authMode === 'signup' ? '2px solid var(--brand-orange)' : '2px solid transparent',
+                  cursor: 'pointer'
+                }}
+              >
+                Sign Up (Temp Mail)
+              </button>
+              <button
+                onClick={() => { setAuthMode('resend_info'); setAuthError(null); }}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  background: authMode === 'resend_info' ? 'var(--bg-panel-elevated)' : 'transparent',
+                  color: authMode === 'resend_info' ? 'var(--brand-orange)' : 'var(--text-muted)',
+                  borderBottom: authMode === 'resend_info' ? '2px solid var(--brand-orange)' : '2px solid transparent',
+                  cursor: 'pointer'
+                }}
+              >
+                Resend Config
+              </button>
+            </div>
+
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              {authError && (
+                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--status-danger)', borderRadius: 'var(--radius-xs)', color: 'var(--status-danger)', fontSize: '0.75rem' }}>
+                  {authError}
+                </div>
+              )}
+
+              {authMode === 'signin' && (
+                <>
+                  {/* Quick-fill Seed Accounts for Evaluators */}
+                  <div style={{ backgroundColor: 'var(--bg-well)', padding: '0.625rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      1-Click Evaluator Demo Sign-In
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.375rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleSignIn('admin@brightloop.com', 'Brightloop@2026')}
+                        className="btn btn-outline"
+                        style={{ fontSize: '0.6875rem', padding: '0.25rem 0.375rem', textAlign: 'center' }}
+                      >
+                        Admin
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSignIn('staff@brightloop.com', 'Brightloop@2026')}
+                        className="btn btn-outline"
+                        style={{ fontSize: '0.6875rem', padding: '0.25rem 0.375rem', textAlign: 'center' }}
+                      >
+                        Staff
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSignIn('sarah@shopflow.com', 'Brightloop@2026')}
+                        className="btn btn-outline"
+                        style={{ fontSize: '0.6875rem', padding: '0.25rem 0.375rem', textAlign: 'center' }}
+                      >
+                        Customer
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      className="input-field"
+                      placeholder="e.g. admin@brightloop.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      className="input-field"
+                      placeholder="Password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                        Unified seed password: <code style={{ color: 'var(--brand-orange)' }}>Brightloop@2026</code>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => { setAuthMode('forgot'); setAuthError(null); setForgotEmail(loginEmail); }}
+                        style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', fontSize: '0.6875rem', cursor: 'pointer', padding: 0 }}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleSignIn()}
+                    disabled={authLoading}
+                    style={{ width: '100%', marginTop: '0.25rem' }}
+                  >
+                    {authLoading ? 'Signing In...' : 'Sign In'}
+                  </button>
+                </>
+              )}
+
+              {authMode === 'signup' && (
+                <>
+                  <div style={{ backgroundColor: 'var(--bg-well)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)', fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
+                    Works with any temporary email service (e.g. 10minutemail, temp-mail.org). A welcome email will be dispatched via Resend.
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Contact Name</label>
+                      <input
+                        type="text"
+                        placeholder="John Doe"
+                        className="input-field"
+                        value={signupName}
+                        onChange={(e) => setSignupName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Company Name</label>
+                      <input
+                        type="text"
+                        placeholder="Acme Corp"
+                        className="input-field"
+                        value={signupCompany}
+                        onChange={(e) => setSignupCompany(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Email Address (or Temporary Email)</label>
+                    <input
+                      type="email"
+                      placeholder="e.g. tempuser123@mailinator.com"
+                      className="input-field"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Password</label>
+                    <input
+                      type="password"
+                      placeholder="e.g. Brightloop@2026"
+                      className="input-field"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                    />
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                      Must be &gt;8 characters with uppercase, lowercase, and special character.
+                    </span>
+                  </div>
+
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSignUp}
+                    disabled={authLoading}
+                    style={{ width: '100%', marginTop: '0.25rem' }}
+                  >
+                    {authLoading ? 'Creating Account...' : 'Create Account & Enter Portal'}
+                  </button>
+                </>
+              )}
+
+              {authMode === 'forgot' && (
+                <>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Enter your registered email address. A password reset link will be dispatched via Resend.
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Email Address</label>
+                    <input
+                      type="email"
+                      placeholder="admin@brightloop.com"
+                      className="input-field"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleForgotPassword}
+                    disabled={authLoading}
+                    style={{ width: '100%' }}
+                  >
+                    {authLoading ? 'Dispatching...' : 'Dispatch Reset Email via Resend'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode('signin'); setAuthError(null); }}
+                    className="btn btn-outline"
+                    style={{ width: '100%' }}
+                  >
+                    Back to Sign In
+                  </button>
+                </>
+              )}
+
+              {authMode === 'resend_info' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ backgroundColor: 'var(--bg-well)', padding: '0.75rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
+                      Where to add your Resend API Key:
+                    </div>
+                    <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem 0' }}>
+                      Open the root <code>.env</code> file in the repository and set your API key:
+                    </p>
+                    <pre style={{ margin: 0, padding: '0.5rem', backgroundColor: 'var(--bg-panel-elevated)', borderRadius: 'var(--radius-xs)', fontSize: '0.6875rem', fontFamily: 'var(--font-mono)', border: '1px solid var(--border-subtle)', overflowX: 'auto' }}>
+                      RESEND_API_KEY=re_your_api_key_here<br />
+                      RESEND_FROM_EMAIL=onboarding@resend.dev
+                    </pre>
+                  </div>
+
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    <strong>Email Delivery Modes:</strong><br />
+                    • <strong>Live Mode:</strong> When <code>RESEND_API_KEY</code> is set, welcome emails, invoice dispatch notifications, and password resets are sent to real inboxes.<br />
+                    • <strong>Safe Simulation Mode:</strong> When no key is set, emails are safely logged to the backend API console in real time without throwing errors.
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      showToast('Dispatching test password reset email to admin@brightloop.com...');
+                      await fetch(`${API_BASE}/auth/forgot-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: 'admin@brightloop.com' })
+                      });
+                      showToast('Test email dispatched! Check backend terminal or Resend dashboard.');
+                    }}
+                    className="btn btn-outline"
+                    style={{ width: '100%', fontSize: '0.75rem' }}
+                  >
+                    <Send size={11} style={{ marginRight: '0.375rem' }} />
+                    Send Test Email to admin@brightloop.com
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-outline btn-sm" onClick={() => setShowAuthModal(false)}>Close</button>
             </div>
           </div>
         </div>
