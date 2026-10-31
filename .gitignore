@@ -51,3 +51,5 @@ Thumbs.db
 # Test & coverage artifacts
 coverage/
 .nyc_output/
+test-results/
+playwright-report/

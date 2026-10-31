@@ -1,20 +1,22 @@
 # Test Results Matrix & Verification Scoreboard
 
-> **Status: 21 / 21 Tests Passing (100% Green)**
+> **Status: 32 / 32 Tests Passing (100% Green)**
 >
-> Automated execution log verified across domain, database, and API packages.
+> Automated execution log verified across domain, database, API, web component (Vitest), and browser E2E (Playwright) suites.
 
 ---
 
 ## 1. Summary Matrix
 
-| Package | Test File | Tests Passed | Duration | Coverage Focus |
-|---|---|:---:|:---:|---|
-| `@repo/domain` | `test/pricing.test.ts` | 6 / 6 | 3 ms | Unit price variant adjustments, line totals, tiered discounts, intervals |
-| `@repo/domain` | `test/e2e-workflow.test.ts` | 1 / 1 | 58 ms | Complete 7-scene customer-to-payment lifecycle, idempotency duplicate skip |
-| `@repo/db` | `test/schema.test.ts` | 3 / 3 | 46 ms | `NUMERIC(14, 4)` precision, PostgreSQL unique constraint `(subscription_id, billing_period_start)`, ACID rollback |
-| `@repo/api` | `test/api.test.ts` | 11 / 11 | 78 ms | Health check, password complexity, RBAC staff provisioning, catalog, quotes, 1-click conversion, billing trigger, PDF generation, payments, reports |
-| **Total** | **4 Test Suites** | **21 / 21** | **< 2.5s** | **100% Comprehensive Coverage** |
+| Package | Test Framework | Test File | Tests Passed | Duration | Coverage Focus |
+|---|---|---|:---:|:---:|---|
+| `@repo/domain` | Vitest | `test/pricing.test.ts` | 6 / 6 | 4 ms | Unit price variant adjustments, line totals, tiered discounts, intervals |
+| `@repo/domain` | Vitest | `test/e2e-workflow.test.ts` | 1 / 1 | 62 ms | Complete 7-scene customer-to-payment lifecycle, idempotency duplicate skip |
+| `@repo/db` | Vitest | `test/schema.test.ts` | 3 / 3 | 48 ms | `NUMERIC(14, 4)` precision, PostgreSQL unique constraint `(subscription_id, billing_period_start)`, ACID rollback |
+| `@repo/api` | Vitest | `test/api.test.ts` | 11 / 11 | 69 ms | Health check, password complexity, RBAC staff provisioning, catalog, quotes, 1-click conversion, billing trigger, PDF generation, payments, reports |
+| `@repo/web` | Vitest | `test/app.test.tsx` | 5 / 5 | 280 ms | Logo & search, theme switcher, tab navigation, customer persona auto-routing, dashboard metrics |
+| `@repo/web` | Playwright | `e2e/dashboard-and-billing.spec.ts` | 6 / 6 | 3.6 s | Live browser E2E: layout & telemetry, dark mode, tab switching, quote modal, billing scan, customer portal |
+| **Total** | **Vitest + Playwright** | **6 Test Suites** | **32 / 32** | **< 6.5s** | **100% Full-Stack Green Verification** |
 
 ---
 
@@ -54,3 +56,18 @@
 - `generates official vector PDF invoice from PDFKit (GET /api/v1/invoices/:id/pdf)`: Passed (`%PDF-` valid stream)
 - `records customer payment and transitions invoice to PAID status`: Passed
 - `GET /api/v1/reports/summary reflects updated revenue metrics`: Passed (< 10ms query execution)
+
+### Suite 5: `@repo/web` (`test/app.test.tsx` - Vitest)
+- `renders top bar with BRIGHTLOOP brand logo and search input`: Passed
+- `toggles light and dark themes on theme button click`: Passed
+- `switches between navigation tabs (Dashboard, Subscriptions, Catalog, Portal)`: Passed
+- `auto-switches to Customer Portal when Customer role is selected`: Passed
+- `displays accurate financial metrics from API on the dashboard`: Passed
+
+### Suite 6: `@repo/web` (`e2e/dashboard-and-billing.spec.ts` - Playwright)
+- `loads dashboard with industrial precision design system and metric strip`: Passed
+- `toggles light and dark themes smoothly`: Passed
+- `switches across navigation segmented tabs`: Passed
+- `opens New Quotation modal dialog cleanly`: Passed
+- `triggers manual billing scan and shows completion feedback`: Passed
+- `switches persona to Customer and operates self-service portal`: Passed

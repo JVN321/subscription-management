@@ -108,16 +108,25 @@ Overall Build Completion: [==================================--] 94%
 ## 4. Test Suite Summary Matrix
 
 ```bash
+# Run all unit and component tests (26 tests)
 pnpm test
+
+# Run browser E2E tests (6 tests)
+pnpm test:e2e
+
+# Run complete verification (32 tests)
+pnpm test:all
 ```
 
-| Test Suite | File | Tests | Status | Execution Time |
-|---|---|---|---|---|
-| Domain Pricing | `packages/domain/test/pricing.test.ts` | 6 | `PASS` | ~4ms |
-| Domain E2E Lifecycle | `packages/domain/test/e2e-workflow.test.ts` | 1 | `PASS` | ~62ms |
-| Database Schema & ACID | `packages/db/test/schema.test.ts` | 3 | `PASS` | ~48ms |
-| Hono API End-to-End | `apps/api/test/api.test.ts` | 11 | `PASS` | ~69ms |
-| **Total** | **4 Test Suites** | **21 Tests** | **ALL PASSED** | **< 2.5s** |
+| Test Suite | Package | Framework | File | Tests | Status | Execution Time |
+|---|---|---|---|---|---|---|
+| Domain Pricing | `@repo/domain` | Vitest | `packages/domain/test/pricing.test.ts` | 6 | `PASS` | ~4ms |
+| Domain E2E Lifecycle | `@repo/domain` | Vitest | `packages/domain/test/e2e-workflow.test.ts` | 1 | `PASS` | ~62ms |
+| Database Schema & ACID | `@repo/db` | Vitest | `packages/db/test/schema.test.ts` | 3 | `PASS` | ~48ms |
+| Hono API End-to-End | `@repo/api` | Vitest | `apps/api/test/api.test.ts` | 11 | `PASS` | ~69ms |
+| Web UI Components | `@repo/web` | Vitest | `apps/web/test/app.test.tsx` | 5 | `PASS` | ~280ms |
+| Browser Live E2E | `@repo/web` | Playwright | `apps/web/e2e/dashboard-and-billing.spec.ts` | 6 | `PASS` | ~3.6s |
+| **Total** | **Monorepo Full-Stack** | **Vitest + Playwright** | **6 Test Suites** | **32 Tests** | **ALL PASSED** | **< 6.5s** |
 
 ---
 
