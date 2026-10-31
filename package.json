@@ -1,0 +1,21 @@
+{
+  "name": "subscription-management-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.13.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"@repo/*\" --filter \"apps/*\" dev",
+    "build": "pnpm --filter \"packages/*\" --filter \"apps/*\" build",
+    "db:generate": "pnpm --filter @repo/db db:generate",
+    "db:migrate": "pnpm --filter @repo/db db:migrate",
+    "db:seed": "pnpm --filter @repo/db db:seed",
+    "db:studio": "pnpm --filter @repo/db db:studio",
+    "test": "pnpm --filter @repo/domain test",
+    "typecheck": "pnpm --recursive exec tsc --noEmit",
+    "docker:up": "docker compose -f docker-compose.dev.yml up -d postgres redis",
+    "docker:down": "docker compose -f docker-compose.dev.yml down"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}

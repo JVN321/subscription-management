@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: brightloop_postgres_dev
+    environment:
+      POSTGRES_DB: brightloop_db
+      POSTGRES_USER: brightloop
+      POSTGRES_PASSWORD: brightloop_dev_pass
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data:Z
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brightloop -d brightloop_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: brightloop_redis_dev
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    volumes:
+      - ./data/redis:/data:Z
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
