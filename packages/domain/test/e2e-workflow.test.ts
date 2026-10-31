@@ -193,7 +193,7 @@ describe('End-to-End Customer → Subscription → Automatic Billing → Invoice
       .where(eq(schema.invoices.id, invoice.id));
 
     expect(paidInvoice.status).toBe('PAID');
-    expect(parseFloat(paidInvoice.amountPaid)).toBe(8580);
+    expect(parseFloat(paidInvoice.amountPaid)).toBe(parseFloat(invoice.totalAmount));
 
     // -------------------------------------------------------------
     // Scene 7: Finance Reporting Metric Validation

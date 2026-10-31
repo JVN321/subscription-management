@@ -24,7 +24,16 @@ import {
   Key,
   LogIn,
   LogOut,
-  Send
+  Send,
+  Percent,
+  UserPlus,
+  Tag,
+  Clock,
+  Filter,
+  Check,
+  XCircle,
+  HelpCircle,
+  Sparkles
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:3001/api/v1';
@@ -34,7 +43,7 @@ export function App() {
     return (localStorage.getItem('brightloop_theme') as 'light' | 'dark') || 'light';
   });
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'quotations' | 'subscriptions' | 'invoices' | 'catalog' | 'portal'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'landing' | 'dashboard' | 'quotations' | 'subscriptions' | 'invoices' | 'discounts' | 'catalog' | 'portal'>('dashboard');
   const [currentRole, setCurrentRole] = useState<'admin' | 'staff' | 'customer'>('admin');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -66,6 +75,32 @@ export function App() {
   const [selectedVariant, setSelectedVariant] = useState('');
   const [quantity, setQuantity] = useState(5);
   const [portalCustomerId, setPortalCustomerId] = useState('');
+
+  // Discounts, Templates & Staff Management States (Scenes 1, 3, 5)
+  const [discounts, setDiscounts] = useState<any[]>([]);
+  const [quotationTemplates, setQuotationTemplates] = useState<any[]>([]);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+
+  // Discount Form
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountType, setDiscountType] = useState<'PERCENTAGE' | 'FIXED_AMOUNT'>('PERCENTAGE');
+  const [discountValue, setDiscountValue] = useState('0.15');
+  const [discountMinQty, setDiscountMinQty] = useState('5');
+  const [discountMinSpend, setDiscountMinSpend] = useState('500.00');
+  const [discountMaxUses, setDiscountMaxUses] = useState('50');
+
+  // Staff Provisioning Form
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffName, setStaffName] = useState('');
+  const [staffPassword, setStaffPassword] = useState('Brightloop@2026');
+
+  // Quotation Template Form
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [validityDays, setValidityDays] = useState(30);
+
+  // Invoice Filter
+  const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'unpaid' | 'overdue'>('all');
 
   // Theme Sync
   useEffect(() => {
@@ -229,8 +264,7 @@ export function App() {
     setCurrentUser(null);
     localStorage.removeItem('brightloop_user');
     showToast('Signed out of Brightloop console');
-    setShowAuthModal(true);
-    setAuthMode('signin');
+    setActiveTab('landing');
   };
 
   const loadData = async () => {
@@ -238,7 +272,7 @@ export function App() {
       setLoading(true);
       const headers = { 'x-user-role': currentRole };
 
-      const [repRes, schedRes, quotesRes, subsRes, invsRes, prodsRes, plansRes, custsRes] = await Promise.all([
+      const [repRes, schedRes, quotesRes, subsRes, invsRes, prodsRes, plansRes, custsRes, discRes, tplRes] = await Promise.all([
         fetch(`${API_BASE}/reports/summary`, { headers }).then((r) => r.json()).catch(() => ({ data: null })),
         fetch(`${API_BASE}/billing/scheduler`, { headers }).then((r) => r.json()).catch(() => ({ data: null })),
         fetch(`${API_BASE}/quotations`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
@@ -246,7 +280,9 @@ export function App() {
         fetch(`${API_BASE}/invoices`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
         fetch(`${API_BASE}/products`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
         fetch(`${API_BASE}/plans`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch(`${API_BASE}/customers`, { headers }).then((r) => r.json()).catch(() => ({ data: [] }))
+        fetch(`${API_BASE}/customers`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_BASE}/discounts`, { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
+        fetch(`${API_BASE}/quotation-templates`, { headers }).then((r) => r.json()).catch(() => ({ data: [] }))
       ]);
 
       if (repRes?.data) setReport(repRes.data);
@@ -254,6 +290,13 @@ export function App() {
       if (quotesRes?.data) setQuotations(quotesRes.data);
       if (subsRes?.data) setSubscriptions(subsRes.data);
       if (invsRes?.data) setInvoices(invsRes.data);
+      if (discRes?.data) setDiscounts(discRes.data);
+      if (tplRes?.data) {
+        setQuotationTemplates(tplRes.data);
+        if (tplRes.data[0]) {
+          setSelectedTemplate(tplRes.data[0].id);
+        }
+      }
       if (prodsRes?.data) {
         setProducts(prodsRes.data);
         if (prodsRes.data[0]) {
@@ -278,6 +321,89 @@ export function App() {
       console.error('Error fetching data:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateDiscount = async () => {
+    if (!discountCode || !discountValue) {
+      showToast('Discount code and value are required');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/discounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: discountCode.toUpperCase(),
+          discountType,
+          value: discountValue,
+          targetType: 'SUBSCRIPTION',
+          minQuantity: parseInt(discountMinQty) || 1,
+          minPurchaseAmount: discountMinSpend,
+          maxUses: parseInt(discountMaxUses) || 50,
+          timesUsed: 0
+        })
+      });
+      const data = await res.json();
+      if (data.data) {
+        showToast(`Discount rule ${data.data.code} created`);
+        setShowDiscountModal(false);
+        setDiscountCode('');
+        loadData();
+      }
+    } catch (e) {
+      showToast('Failed to create discount');
+    }
+  };
+
+  const handleCreateStaff = async () => {
+    if (!staffEmail || !staffPassword) {
+      showToast('Email and password are required');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/staff`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole
+        },
+        body: JSON.stringify({
+          email: staffEmail,
+          password: staffPassword,
+          name: staffName || staffEmail.split('@')[0]
+        })
+      });
+      const data = await res.json();
+      if (res.status === 403) {
+        showToast('Forbidden: Only admins can provision staff');
+        return;
+      }
+      if (data.data) {
+        showToast(`Staff member ${data.data.email} provisioned`);
+        setShowStaffModal(false);
+        setStaffEmail('');
+        setStaffName('');
+        loadData();
+      } else if (data.error) {
+        showToast(data.error.message || 'Staff provisioning failed');
+      }
+    } catch (e) {
+      showToast('Staff provisioning failed');
+    }
+  };
+
+  const handleUpdateInvoiceStatus = async (invoiceId: string, nextStatus: string) => {
+    try {
+      await fetch(`${API_BASE}/invoices/${invoiceId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      showToast(`Invoice updated to ${nextStatus}`);
+      loadData();
+    } catch (e) {
+      showToast('Invoice status update failed');
     }
   };
 
@@ -391,7 +517,8 @@ export function App() {
         body: JSON.stringify({
           customerId: selectedCustomer,
           planId: selectedPlan,
-          validityDays: 30,
+          validityDays: validityDays || 30,
+          templateId: selectedTemplate || undefined,
           lines: [
             {
               productId: selectedProduct,
@@ -543,31 +670,6 @@ export function App() {
 
             <div style={{ height: '14px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
 
-            {/* Resend Email Integration Trigger */}
-            <button
-              onClick={() => {
-                setAuthMode('resend_info');
-                setShowAuthModal(true);
-              }}
-              title="Resend Email Service Setup"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                backgroundColor: 'var(--bg-well)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-xs)',
-                padding: '0 0.5rem',
-                height: '1.75rem',
-                fontSize: '0.75rem',
-                color: 'var(--text-primary)',
-                cursor: 'pointer'
-              }}
-            >
-              <Mail size={12} color="var(--brand-orange)" />
-              <span style={{ fontWeight: 600 }}>Resend</span>
-            </button>
-
             <div
               style={{
                 display: 'flex',
@@ -584,12 +686,26 @@ export function App() {
               <select
                 value={currentRole}
                 onChange={(e) => {
-                  const newRole = e.target.value as any;
+                  const newRole = e.target.value as 'admin' | 'staff' | 'customer';
                   setCurrentRole(newRole);
-                  if (newRole === 'customer') {
-                    setActiveTab('portal');
-                  } else if (activeTab === 'portal') {
+                  if (newRole === 'admin') {
+                    const u = { id: 'admin-1', email: 'admin@brightloop.com', name: 'Alice Cooper (Admin & Finance Lead)', role: 'admin' as const };
+                    setCurrentUser(u);
+                    localStorage.setItem('brightloop_user', JSON.stringify(u));
                     setActiveTab('dashboard');
+                    showToast('Switched to Administrator Persona');
+                  } else if (newRole === 'staff') {
+                    const u = { id: 'staff-1', email: 'staff@brightloop.com', name: 'Bob Miller (Sales & Billing Staff)', role: 'staff' as const };
+                    setCurrentUser(u);
+                    localStorage.setItem('brightloop_user', JSON.stringify(u));
+                    setActiveTab('quotations');
+                    showToast('Switched to Sales & Billing Staff Persona');
+                  } else {
+                    const u = { id: 'cust-1', email: 'sarah@shopflow.com', name: 'Sarah Jenkins (ShopFlow E-Commerce)', role: 'customer' as const };
+                    setCurrentUser(u);
+                    localStorage.setItem('brightloop_user', JSON.stringify(u));
+                    setActiveTab('portal');
+                    showToast('Switched to Customer Persona');
                   }
                 }}
                 style={{
@@ -707,71 +823,142 @@ export function App() {
             gap: '0.5rem'
           }}
         >
-          {/* Tabs */}
+          {/* Role-Specific Segmented Navigation Tabs */}
           <nav className="nav-segmented">
+            {currentRole === 'admin' && (
+              <button
+                className={`nav-tab-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+                onClick={() => setActiveTab('dashboard')}
+              >
+                <LayoutDashboard size={12} />
+                <span>Executive Telemetry</span>
+              </button>
+            )}
+
+            {(currentRole === 'admin' || currentRole === 'staff') && (
+              <>
+                <button
+                  className={`nav-tab-item ${activeTab === 'quotations' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('quotations')}
+                >
+                  <FileText size={12} />
+                  <span>Quotations</span>
+                  {quotations.filter((q) => q.status === 'SENT').length > 0 && (
+                    <span style={{ color: 'var(--brand-orange)', fontWeight: 700, fontSize: '0.6875rem' }}>
+                      ({quotations.filter((q) => q.status === 'SENT').length})
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  className={`nav-tab-item ${activeTab === 'subscriptions' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('subscriptions')}
+                >
+                  <Repeat size={12} />
+                  <span>Subscriptions</span>
+                </button>
+
+                <button
+                  className={`nav-tab-item ${activeTab === 'invoices' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('invoices')}
+                >
+                  <Receipt size={12} />
+                  <span>Invoices & Payments</span>
+                  {overdueInvoices.length > 0 && (
+                    <span style={{ color: 'var(--status-danger)', fontWeight: 700, fontSize: '0.6875rem' }}>
+                      ({overdueInvoices.length})
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
+
+            {currentRole === 'admin' && (
+              <button
+                className={`nav-tab-item ${activeTab === 'discounts' ? 'active' : ''}`}
+                onClick={() => setActiveTab('discounts')}
+              >
+                <Percent size={12} />
+                <span>Discounts & Rules</span>
+              </button>
+            )}
+
+            {(currentRole === 'admin' || currentRole === 'staff') && (
+              <button
+                className={`nav-tab-item ${activeTab === 'catalog' ? 'active' : ''}`}
+                onClick={() => setActiveTab('catalog')}
+              >
+                <Package size={12} />
+                <span>Catalog</span>
+              </button>
+            )}
+
+            {(currentRole === 'admin' || currentRole === 'customer') && (
+              <button
+                className={`nav-tab-item ${activeTab === 'portal' ? 'active' : ''}`}
+                onClick={() => setActiveTab('portal')}
+              >
+                <Users size={12} />
+                <span>Customer Portal</span>
+              </button>
+            )}
+
             <button
-              className={`nav-tab-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setActiveTab('dashboard')}
+              className={`nav-tab-item ${activeTab === 'landing' ? 'active' : ''}`}
+              onClick={() => setActiveTab('landing')}
             >
-              <LayoutDashboard size={12} />
-              <span>Dashboard</span>
-            </button>
-            <button
-              className={`nav-tab-item ${activeTab === 'quotations' ? 'active' : ''}`}
-              onClick={() => setActiveTab('quotations')}
-            >
-              <FileText size={12} />
-              <span>Quotations</span>
-              {quotations.filter((q) => q.status === 'SENT').length > 0 && (
-                <span style={{ color: 'var(--brand-orange)', fontWeight: 700, fontSize: '0.6875rem' }}>
-                  ({quotations.filter((q) => q.status === 'SENT').length})
-                </span>
-              )}
-            </button>
-            <button
-              className={`nav-tab-item ${activeTab === 'subscriptions' ? 'active' : ''}`}
-              onClick={() => setActiveTab('subscriptions')}
-            >
-              <Repeat size={12} />
-              <span>Subscriptions</span>
-            </button>
-            <button
-              className={`nav-tab-item ${activeTab === 'invoices' ? 'active' : ''}`}
-              onClick={() => setActiveTab('invoices')}
-            >
-              <Receipt size={12} />
-              <span>Invoices & Payments</span>
-              {overdueInvoices.length > 0 && (
-                <span style={{ color: 'var(--status-danger)', fontWeight: 700, fontSize: '0.6875rem' }}>
-                  ({overdueInvoices.length})
-                </span>
-              )}
-            </button>
-            <button
-              className={`nav-tab-item ${activeTab === 'catalog' ? 'active' : ''}`}
-              onClick={() => setActiveTab('catalog')}
-            >
-              <Package size={12} />
-              <span>Catalog</span>
-            </button>
-            <button
-              className={`nav-tab-item ${activeTab === 'portal' ? 'active' : ''}`}
-              onClick={() => setActiveTab('portal')}
-            >
-              <Users size={12} />
-              <span>Customer Portal</span>
+              <Sparkles size={12} color="var(--brand-orange)" />
+              <span>Personas & Scenarios</span>
             </button>
           </nav>
 
-          {/* Right Action: Billing Scan */}
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={handleTriggerBilling}
-            disabled={billingLoading}
-          >
-            <Play size={11} />
-            <span>{billingLoading ? 'Processing...' : 'Run Billing Scan'}</span>
-          </button>
+          {/* Right Role-Aware Contextual Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {currentRole === 'admin' && (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setShowStaffModal(true)}
+                title="Admin only: Provision authorized sales representative or billing staff (Scene 1)"
+              >
+                <UserPlus size={11} />
+                <span>Provision Staff</span>
+              </button>
+            )}
+
+            {(currentRole === 'admin' || currentRole === 'staff') && (
+              <>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setShowQuoteModal(true)}
+                  title="Prepare offer starting from quotation template (Scene 3)"
+                >
+                  <Plus size={11} />
+                  <span>New Quote</span>
+                </button>
+
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleTriggerBilling}
+                  disabled={billingLoading}
+                  title="Run automated recurring billing scan on due subscriptions (Scene 4)"
+                >
+                  <Play size={11} />
+                  <span>{billingLoading ? 'Processing...' : 'Run Billing Scan'}</span>
+                </button>
+              </>
+            )}
+
+            {currentRole === 'customer' && (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={loadData}
+                disabled={loading}
+              >
+                <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
+                <span>Sync Account</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1220,14 +1407,77 @@ export function App() {
         {/* ========================================================================= */}
         {/* TAB 4: INVOICES & PAYMENTS */}
         {/* ========================================================================= */}
+        {/* ========================================================================= */}
+        {/* TAB 4: INVOICES & PAYMENTS (SCENES 4 & 6) */}
+        {/* ========================================================================= */}
         {activeTab === 'invoices' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Invoices & Payments</h2>
-              <button className="btn btn-primary btn-sm" onClick={handleTriggerBilling} disabled={billingLoading}>
-                <Play size={11} />
-                <span>{billingLoading ? 'Processing...' : 'Run Billing Scan'}</span>
-              </button>
+            {/* Context Header */}
+            <div className="instrument-panel" style={{ padding: '0.75rem 1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div>
+                  <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Invoices & Payments</h2>
+                  <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+                    Scene 4: Billing Day recurring scan with automated tax calculations. Confirm, cancel, email via Resend, and print.
+                    Scene 6: Record payments with method, amount, date, and notes.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {/* Filter Pills */}
+                  <div style={{ display: 'flex', backgroundColor: 'var(--bg-well)', borderRadius: 'var(--radius-xs)', padding: '2px', border: '1px solid var(--border-subtle)' }}>
+                    <button
+                      onClick={() => setInvoiceFilter('all')}
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        borderRadius: 'var(--radius-xs)',
+                        backgroundColor: invoiceFilter === 'all' ? 'var(--bg-panel-elevated)' : 'transparent',
+                        color: invoiceFilter === 'all' ? 'var(--text-primary)' : 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      All ({invoices.length})
+                    </button>
+                    <button
+                      onClick={() => setInvoiceFilter('unpaid')}
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        borderRadius: 'var(--radius-xs)',
+                        backgroundColor: invoiceFilter === 'unpaid' ? 'var(--bg-panel-elevated)' : 'transparent',
+                        color: invoiceFilter === 'unpaid' ? 'var(--brand-orange)' : 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Unpaid ({invoices.filter((i) => i.status !== 'PAID').length})
+                    </button>
+                    <button
+                      onClick={() => setInvoiceFilter('overdue')}
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        border: 'none',
+                        borderRadius: 'var(--radius-xs)',
+                        backgroundColor: invoiceFilter === 'overdue' ? 'var(--bg-panel-elevated)' : 'transparent',
+                        color: invoiceFilter === 'overdue' ? 'var(--status-danger)' : 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Overdue ({overdueInvoices.length})
+                    </button>
+                  </div>
+
+                  <button className="btn btn-primary btn-sm" onClick={handleTriggerBilling} disabled={billingLoading}>
+                    <Play size={11} />
+                    <span>{billingLoading ? 'Scanning...' : 'Run Billing Scan'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="table-wrapper">
@@ -1243,87 +1493,205 @@ export function App() {
                     <th style={{ textAlign: 'right' }}>Tax</th>
                     <th style={{ textAlign: 'right' }}>Total</th>
                     <th style={{ textAlign: 'right' }}>Balance Due</th>
-                    <th style={{ textAlign: 'center' }}>PDF</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
+                    <th style={{ textAlign: 'center' }}>Dispatch</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map((inv) => {
-                    const cust = customers.find((c) => c.id === inv.customerId);
-                    const isPaid = inv.status === 'PAID';
-                    const outstanding = Math.max(0, parseFloat(inv.totalAmount) - parseFloat(inv.amountPaid));
+                  {invoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+                        No invoices generated yet. Click "Run Billing Scan" to process active subscriptions.
+                      </td>
+                    </tr>
+                  ) : (
+                    invoices
+                      .filter((inv) => {
+                        if (invoiceFilter === 'unpaid') return inv.status !== 'PAID';
+                        if (invoiceFilter === 'overdue') return inv.isOverdue || (inv.status !== 'PAID' && new Date(inv.dueDate) < new Date());
+                        return true;
+                      })
+                      .map((inv) => {
+                        const cust = customers.find((c) => c.id === inv.customerId);
+                        const isPaid = inv.status === 'PAID';
+                        const outstanding = Math.max(0, parseFloat(inv.totalAmount) - parseFloat(inv.amountPaid));
 
-                    return (
-                      <tr key={inv.id}>
-                        <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
-                        <td>
-                          <div style={{ fontWeight: 500 }}>
-                            {inv.customerSnapshot?.companyName || cust?.companyName || 'Corporate Client'}
-                          </div>
-                          <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Due: {inv.dueDate}</div>
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                          {inv.billingPeriodStart} to {inv.billingPeriodEnd}
-                        </td>
-                        <td>
-                          <span className={`status-signal ${isPaid ? 'signal-active' : inv.isOverdue ? 'signal-danger' : 'signal-orange'}`}>
-                            <span>{isPaid ? 'PAID' : inv.isOverdue ? 'OVERDUE' : inv.status}</span>
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                          ${parseFloat(inv.subtotal).toFixed(2)}
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--brand-orange)' }}>
-                          -${parseFloat(inv.discountAmount).toFixed(2)}
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                          ${parseFloat(inv.taxAmount).toFixed(2)}
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                          ${parseFloat(inv.totalAmount).toFixed(2)}
-                        </td>
-                        <td
-                          style={{
-                            textAlign: 'right',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 700,
-                            color: outstanding > 0 ? 'var(--status-danger)' : 'var(--status-success)'
-                          }}
-                        >
-                          ${outstanding.toFixed(2)}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <a
-                            href={`${API_BASE}/invoices/${inv.id}/pdf`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn-icon-circle"
-                            title="Download PDF"
-                            style={{ width: '22px', height: '22px' }}
-                          >
-                            <Download size={10} />
-                          </a>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          {!isPaid ? (
-                            <button
-                              className="btn btn-primary btn-sm"
-                              onClick={() => {
-                                setSelectedInvoice(inv);
-                                setPaymentAmount(outstanding.toFixed(2));
-                                setShowPaymentModal(true);
+                        return (
+                          <tr key={inv.id}>
+                            <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
+                            <td>
+                              <div style={{ fontWeight: 500 }}>
+                                {inv.customerSnapshot?.companyName || cust?.companyName || 'Corporate Client'}
+                              </div>
+                              <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Due: {inv.dueDate}</div>
+                            </td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                              {inv.billingPeriodStart} to {inv.billingPeriodEnd}
+                            </td>
+                            <td>
+                              <span className={`status-signal ${isPaid ? 'signal-active' : inv.isOverdue ? 'signal-danger' : inv.status === 'CONFIRMED' ? 'signal-active' : 'signal-orange'}`}>
+                                <span>{isPaid ? 'PAID' : inv.isOverdue ? 'OVERDUE' : inv.status}</span>
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                              ${parseFloat(inv.subtotal).toFixed(2)}
+                            </td>
+                            <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--brand-orange)' }}>
+                              -${parseFloat(inv.discountAmount).toFixed(2)}
+                            </td>
+                            <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                              ${parseFloat(inv.taxAmount).toFixed(2)}
+                            </td>
+                            <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                              ${parseFloat(inv.totalAmount).toFixed(2)}
+                            </td>
+                            <td
+                              style={{
+                                textAlign: 'right',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                color: outstanding > 0 ? 'var(--status-danger)' : 'var(--status-success)'
                               }}
                             >
-                              <CreditCard size={11} />
-                              <span>Record</span>
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', fontWeight: 600 }}>Settled</span>
-                          )}
+                              ${outstanding.toFixed(2)}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <button
+                                  className="btn-icon-circle"
+                                  title="Send invoice email to customer via Resend"
+                                  onClick={() => handleSendInvoiceEmail(inv.id)}
+                                  style={{ width: '24px', height: '24px' }}
+                                >
+                                  <Mail size={11} color="var(--brand-orange)" />
+                                </button>
+                                <a
+                                  href={`${API_BASE}/invoices/${inv.id}/pdf`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn-icon-circle"
+                                  title="Print / Download PDF"
+                                  style={{ width: '24px', height: '24px' }}
+                                >
+                                  <Download size={11} />
+                                </a>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                {inv.status === 'DRAFT' && (
+                                  <button
+                                    className="btn btn-outline btn-sm"
+                                    onClick={() => handleUpdateInvoiceStatus(inv.id, 'CONFIRMED')}
+                                    title="Confirm draft invoice"
+                                    style={{ fontSize: '0.6875rem', padding: '0.2rem 0.4rem' }}
+                                  >
+                                    <Check size={10} />
+                                    <span>Confirm</span>
+                                  </button>
+                                )}
+                                {!isPaid && inv.status !== 'CANCELLED' && (
+                                  <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => {
+                                      setSelectedInvoice(inv);
+                                      setPaymentAmount(outstanding.toFixed(2));
+                                      setShowPaymentModal(true);
+                                    }}
+                                    title="Record customer payment against invoice"
+                                    style={{ fontSize: '0.6875rem', padding: '0.2rem 0.4rem' }}
+                                  >
+                                    <CreditCard size={10} />
+                                    <span>Record Pay</span>
+                                  </button>
+                                )}
+                                {isPaid && (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', fontWeight: 600 }}>Settled</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 5: DISCOUNTS & PRICING RULES (SCENE 5: A CUSTOMER ASKS FOR A BETTER PRICE) */}
+        {/* ========================================================================= */}
+        {activeTab === 'discounts' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div className="instrument-panel" style={{ padding: '0.875rem 1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div>
+                  <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Discounts & Pricing Rules (Scene 5)</h2>
+                  <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+                    Only administrators can create discount rules: fixed amount or percentage, with minimum seats or spend thresholds,
+                    and usage caps. Discounts automatically apply during automated billing day scans.
+                  </p>
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowDiscountModal(true)}>
+                  <Plus size={11} />
+                  <span>Create Discount Rule</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="table-wrapper">
+              <table className="table-industrial">
+                <thead>
+                  <tr>
+                    <th>Rule Code</th>
+                    <th>Type</th>
+                    <th>Discount Value</th>
+                    <th>Target Scope</th>
+                    <th>Min Seats / Spend</th>
+                    <th>Usage Counter</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {discounts.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+                        No discount rules configured. Click "Create Discount Rule" to set up volume tiers or promotions.
+                      </td>
+                    </tr>
+                  ) : (
+                    discounts.map((d) => (
+                      <tr key={d.id}>
+                        <td style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--brand-orange)' }}>
+                          {d.code}
+                        </td>
+                        <td>
+                          <span className="status-signal">
+                            {d.discountType === 'PERCENTAGE' ? 'Percentage' : 'Fixed Amount'}
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                          {d.discountType === 'PERCENTAGE'
+                            ? `${(parseFloat(d.value) * 100).toFixed(0)}% OFF`
+                            : `$${parseFloat(d.value).toFixed(2)} OFF`}
+                        </td>
+                        <td>{d.targetType === 'SUBSCRIPTION' ? 'Whole Subscription' : 'Product Lines'}</td>
+                        <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          Min {d.minQuantity || 1} seats • ${parseFloat(d.minPurchaseAmount || '0').toFixed(2)} min spend
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                          {d.timesUsed || 0} / {d.maxUses ? `${d.maxUses} uses` : 'Unlimited'}
+                        </td>
+                        <td>
+                          <span className="status-signal signal-active">
+                            <span>ACTIVE</span>
+                          </span>
                         </td>
                       </tr>
-                    );
-                  })}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1589,18 +1957,377 @@ export function App() {
             </div>
           </div>
         )}
+        {/* ========================================================================= */}
+        {/* TAB 7: PERSONAS & SCENARIOS HUB (LANDING PAGE) */}
+        {/* ========================================================================= */}
+        {activeTab === 'landing' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Hero / System Overview */}
+            <div className="instrument-panel" style={{ padding: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.2rem 0.5rem', backgroundColor: 'var(--bg-well)', borderRadius: 'var(--radius-xs)', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--brand-orange)', marginBottom: '0.5rem' }}>
+                    <Sparkles size={11} />
+                    <span>HACKATHON SCENARIO HUB & ROLE QUICK-ACCESS</span>
+                  </div>
+                  <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
+                    Brightloop Subscription Management Engine
+                  </h1>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0 0', maxWidth: '780px', lineHeight: 1.5 }}>
+                    Test and verify all 7 real-world business scenarios from the hackathon problem statement. Switch between organizational personas below to experience role-tailored workflows.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => { setAuthMode('signin'); setShowAuthModal(true); }}
+                  >
+                    <LogIn size={11} />
+                    <span>Sign In Dialog</span>
+                  </button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
+                  >
+                    <Mail size={11} />
+                    <span>Sign Up (Temp Mail)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Persona Quick Switcher Cards */}
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                1. Select Organizational Persona (Instant Switch)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '0.75rem' }}>
+                {/* Persona 1: Admin */}
+                <div
+                  className="instrument-panel"
+                  style={{
+                    padding: '1rem',
+                    border: currentRole === 'admin' ? '1.5px solid var(--brand-orange)' : '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="status-signal signal-orange">
+                        <span>ADMIN / FINANCE LEAD</span>
+                      </span>
+                      {currentRole === 'admin' && (
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--brand-orange)' }}>
+                          ACTIVE PERSONA
+                        </span>
+                      )}
+                    </div>
+                    <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, marginTop: '0.5rem' }}>
+                      Alice Cooper (Finance Lead)
+                    </h3>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      admin@brightloop.com • Unified Pass: Brightloop@2026
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', lineHeight: 1.4 }}>
+                      Scene 7: Month-end executive telemetry, MRR, AR overdue chasing. Scene 5: Configures discount rules. Scene 1: Provisions staff members.
+                    </p>
+                  </div>
+                  <button
+                    className={`btn ${currentRole === 'admin' ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                    onClick={() => {
+                      const u = { id: 'admin-1', email: 'admin@brightloop.com', name: 'Alice Cooper (Admin & Finance Lead)', role: 'admin' as const };
+                      setCurrentRole('admin');
+                      setCurrentUser(u);
+                      localStorage.setItem('brightloop_user', JSON.stringify(u));
+                      setActiveTab('dashboard');
+                      showToast('Switched to Alice Cooper (Admin / Finance Lead)');
+                    }}
+                  >
+                    <span>{currentRole === 'admin' ? 'Open Finance Dashboard' : 'Switch to Admin Persona'}</span>
+                    <ArrowRight size={11} />
+                  </button>
+                </div>
+
+                {/* Persona 2: Staff */}
+                <div
+                  className="instrument-panel"
+                  style={{
+                    padding: '1rem',
+                    border: currentRole === 'staff' ? '1.5px solid var(--brand-orange)' : '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="status-signal signal-active">
+                        <span>STAFF / SALES REP</span>
+                      </span>
+                      {currentRole === 'staff' && (
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--brand-orange)' }}>
+                          ACTIVE PERSONA
+                        </span>
+                      )}
+                    </div>
+                    <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, marginTop: '0.5rem' }}>
+                      Bob Miller (Sales & Billing Ops)
+                    </h3>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      staff@brightloop.com • Unified Pass: Brightloop@2026
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', lineHeight: 1.4 }}>
+                      Scene 3: Prepares offers from quotation templates, 1-click convert to subscription. Scene 4: Confirms & emails invoices. Scene 6: Records customer payments.
+                    </p>
+                  </div>
+                  <button
+                    className={`btn ${currentRole === 'staff' ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                    onClick={() => {
+                      const u = { id: 'staff-1', email: 'staff@brightloop.com', name: 'Bob Miller (Sales & Billing Staff)', role: 'staff' as const };
+                      setCurrentRole('staff');
+                      setCurrentUser(u);
+                      localStorage.setItem('brightloop_user', JSON.stringify(u));
+                      setActiveTab('quotations');
+                      showToast('Switched to Bob Miller (Sales & Billing Staff)');
+                    }}
+                  >
+                    <span>{currentRole === 'staff' ? 'Open Quotations Workflow' : 'Switch to Staff Persona'}</span>
+                    <ArrowRight size={11} />
+                  </button>
+                </div>
+
+                {/* Persona 3: Customer */}
+                <div
+                  className="instrument-panel"
+                  style={{
+                    padding: '1rem',
+                    border: currentRole === 'customer' ? '1.5px solid var(--brand-orange)' : '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="status-signal">
+                        <span>CUSTOMER PORTAL</span>
+                      </span>
+                      {currentRole === 'customer' && (
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--brand-orange)' }}>
+                          ACTIVE PERSONA
+                        </span>
+                      )}
+                    </div>
+                    <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, marginTop: '0.5rem' }}>
+                      Sarah Jenkins (ShopFlow E-Commerce)
+                    </h3>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      sarah@shopflow.com • Unified Pass: Brightloop@2026
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', lineHeight: 1.4 }}>
+                      Customer Self-Service: Inspects active subscription status, pauses/resumes service, views invoice statements, downloads official PDFs, and pays balances.
+                    </p>
+                  </div>
+                  <button
+                    className={`btn ${currentRole === 'customer' ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                    onClick={() => {
+                      const u = { id: 'cust-1', email: 'sarah@shopflow.com', name: 'Sarah Jenkins (ShopFlow E-Commerce)', role: 'customer' as const };
+                      setCurrentRole('customer');
+                      setCurrentUser(u);
+                      localStorage.setItem('brightloop_user', JSON.stringify(u));
+                      setActiveTab('portal');
+                      showToast('Switched to Sarah Jenkins (Customer Portal)');
+                    }}
+                  >
+                    <span>{currentRole === 'customer' ? 'Open Customer Portal' : 'Switch to Customer Persona'}</span>
+                    <ArrowRight size={11} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* The 5 Key Business Scenarios from the Prompt */}
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                2. Problem Statement Scenarios & Step-by-Step Executions
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem' }}>
+                {/* Scene 3 Card */}
+                <div className="instrument-panel" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--brand-orange)', textTransform: 'uppercase' }}>
+                      Scene 3
+                    </div>
+                    <h4 style={{ fontSize: '0.875rem', fontWeight: 700, margin: '0.2rem 0' }}>
+                      Turning a Quote into a Subscription
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      Sales rep prepares an offer starting from a quotation template. Stays valid for set days, with lines showing product, qty, unit price, taxes, and amount. Converts to Active subscription in 1 click without manual re-entry.
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      if (currentRole === 'customer') setCurrentRole('staff');
+                      setActiveTab('quotations');
+                    }}
+                  >
+                    <span>Execute Quotation Flow</span>
+                    <ArrowRight size={11} />
+                  </button>
+                </div>
+
+                {/* Scene 4 Card */}
+                <div className="instrument-panel" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--brand-orange)', textTransform: 'uppercase' }}>
+                      Scene 4
+                    </div>
+                    <h4 style={{ fontSize: '0.875rem', fontWeight: 700, margin: '0.2rem 0' }}>
+                      Billing Day & Automated Invoicing
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      Hundreds of subscriptions are due at once. Automated batch scanner creates invoices from subscriptions with taxes and customer lines calculated automatically. Confirm, cancel, email via Resend, and print.
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      if (currentRole === 'customer') setCurrentRole('staff');
+                      setActiveTab('invoices');
+                    }}
+                  >
+                    <span>Run Billing Day Flow</span>
+                    <ArrowRight size={11} />
+                  </button>
+                </div>
+
+                {/* Scene 5 Card */}
+                <div className="instrument-panel" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--brand-orange)', textTransform: 'uppercase' }}>
+                      Scene 5
+                    </div>
+                    <h4 style={{ fontSize: '0.875rem', fontWeight: 700, margin: '0.2rem 0' }}>
+                      A Customer Asks for a Better Price
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      Customer wants a discount for taking more seats. Admin creates discount rules: fixed or percentage, min seats, spend, and usage caps. Rule appears on the next billing invoice on its own.
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      setCurrentRole('admin');
+                      setActiveTab('discounts');
+                    }}
+                  >
+                    <span>Manage Discount Rules</span>
+                    <ArrowRight size={11} />
+                  </button>
+                </div>
+
+                {/* Scene 6 Card */}
+                <div className="instrument-panel" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--brand-orange)', textTransform: 'uppercase' }}>
+                      Scene 6
+                    </div>
+                    <h4 style={{ fontSize: '0.875rem', fontWeight: 700, margin: '0.2rem 0' }}>
+                      The Money Comes In
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      Payments arrive by Wire, Card, Check. Each is recorded with method, amount, date, and reference note against the invoice. Immediate visibility of paid vs overdue invoices.
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      if (currentRole === 'customer') setCurrentRole('staff');
+                      setActiveTab('invoices');
+                    }}
+                  >
+                    <span>Record & Track Payments</span>
+                    <ArrowRight size={11} />
+                  </button>
+                </div>
+
+                {/* Scene 7 Card */}
+                <div className="instrument-panel" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--brand-orange)', textTransform: 'uppercase' }}>
+                      Scene 7
+                    </div>
+                    <h4 style={{ fontSize: '0.875rem', fontWeight: 700, margin: '0.2rem 0' }}>
+                      The Finance Lead at Month End
+                    </h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      One place to see active subscriptions, MRR, cash collected, and overdue AR. Filterable summary table with sub-10ms response time (well within the &lt;2 second benchmark).
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      setCurrentRole('admin');
+                      setActiveTab('dashboard');
+                    }}
+                  >
+                    <span>Open Finance Telemetry</span>
+                    <ArrowRight size={11} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
-      {/* MODAL: CREATE QUOTATION */}
+      {/* MODAL: CREATE QUOTATION (SCENE 3) */}
       {showQuoteModal && (
         <div className="dialog-backdrop">
-          <div className="dialog-panel">
+          <div className="dialog-panel" style={{ maxWidth: '480px' }}>
             <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700 }}>New Quotation</h3>
+              <div>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0 }}>New Quotation (Scene 3)</h3>
+                <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+                  Prepare offer starting from a template with pre-filled lines and validity days.
+                </p>
+              </div>
               <button className="btn-icon-circle" onClick={() => setShowQuoteModal(false)}>✕</button>
             </div>
 
             <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                  Quotation Template (Scene 3)
+                </label>
+                <select
+                  className="input-field"
+                  value={selectedTemplate}
+                  onChange={(e) => {
+                    setSelectedTemplate(e.target.value);
+                    const tpl = quotationTemplates.find((t) => t.id === e.target.value);
+                    if (tpl) {
+                      if (tpl.defaultPlanId) setSelectedPlan(tpl.defaultPlanId);
+                      if (tpl.validityDays) setValidityDays(tpl.validityDays);
+                    }
+                  }}
+                >
+                  <option value="">Custom Quotation (No Template)</option>
+                  {quotationTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.validityDays || 30} days validity)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Customer</label>
                 <select
@@ -1659,22 +2386,76 @@ export function App() {
                 </div>
               )}
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Seats</label>
-                <input
-                  type="number"
-                  min={1}
-                  className="input-field"
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Seats / Quantity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="input-field"
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Validity (Days)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    className="input-field"
+                    value={validityDays}
+                    onChange={(e) => setValidityDays(parseInt(e.target.value) || 30)}
+                  />
+                </div>
               </div>
+
+              {/* Real-time Line Item Calculation Summary */}
+              {(() => {
+                const prod = products.find((p) => p.id === selectedProduct);
+                const variant = prod?.variants?.find((v: any) => v.id === selectedVariant);
+                let basePrice = parseFloat(prod?.salesPrice || '1000');
+                if (variant) basePrice += parseFloat(variant.priceAdjustment || '0');
+                const lineSubtotal = basePrice * (quantity || 1);
+                const lineTax = lineSubtotal * 0.1;
+                const lineTotal = lineSubtotal + lineTax;
+
+                const expDate = new Date();
+                expDate.setDate(expDate.getDate() + (validityDays || 30));
+
+                return (
+                  <div style={{ backgroundColor: 'var(--bg-well)', padding: '0.625rem', borderRadius: 'var(--radius-xs)', fontSize: '0.75rem', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Calculated Expiry Date:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{expDate.toLocaleDateString()}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Effective Unit Price:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>${basePrice.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Subtotal ({quantity || 1} seats):</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>${lineSubtotal.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Tax (10% Automated Rule):</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>${lineTax.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.25rem', borderTop: '1px solid var(--border-subtle)' }}>
+                      <span style={{ fontWeight: 600 }}>Quotation Amount:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-orange)' }}>
+                        ${lineTotal.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button className="btn btn-outline btn-sm" onClick={() => setShowQuoteModal(false)}>Cancel</button>
               <button className="btn btn-primary btn-sm" onClick={handleCreateQuote} disabled={loading}>
-                {loading ? 'Creating...' : 'Create'}
+                {loading ? 'Creating...' : 'Create Quotation'}
               </button>
             </div>
           </div>
@@ -1751,6 +2532,165 @@ export function App() {
               <button className="btn btn-outline btn-sm" onClick={() => setShowPaymentModal(false)}>Cancel</button>
               <button className="btn btn-primary btn-sm" onClick={handleRecordPayment} disabled={loading}>
                 {loading ? 'Recording...' : 'Confirm Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CREATE DISCOUNT RULE (SCENE 5: A CUSTOMER ASKS FOR A BETTER PRICE) */}
+      {showDiscountModal && (
+        <div className="dialog-backdrop">
+          <div className="dialog-panel" style={{ maxWidth: '480px' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0 }}>Create Discount Rule (Scene 5)</h3>
+                <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+                  Admin only. Rule automatically applies to invoices when criteria are met.
+                </p>
+              </div>
+              <button className="btn-icon-circle" onClick={() => setShowDiscountModal(false)}>✕</button>
+            </div>
+
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Discount Code</label>
+                <input
+                  type="text"
+                  placeholder="e.g. ENTERPRISE25 or VOLUME10"
+                  className="input-field"
+                  value={discountCode}
+                  onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Discount Type</label>
+                  <select
+                    className="input-field"
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value as any)}
+                  >
+                    <option value="PERCENTAGE">Percentage (%)</option>
+                    <option value="FIXED_AMOUNT">Fixed Amount ($)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                    {discountType === 'PERCENTAGE' ? 'Rate (e.g. 0.20 for 20%)' : 'Dollar Amount ($)'}
+                  </label>
+                  <input
+                    type="number"
+                    step={discountType === 'PERCENTAGE' ? '0.01' : '1'}
+                    className="input-field"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Min Seats / Quantity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="input-field"
+                    value={discountMinQty}
+                    onChange={(e) => setDiscountMinQty(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Min Spend ($)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="50"
+                    className="input-field"
+                    value={discountMinSpend}
+                    onChange={(e) => setDiscountMinSpend(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Max Usage Cap (Times)</label>
+                <input
+                  type="number"
+                  min={1}
+                  className="input-field"
+                  value={discountMaxUses}
+                  onChange={(e) => setDiscountMaxUses(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn btn-outline btn-sm" onClick={() => setShowDiscountModal(false)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={handleCreateDiscount}>
+                Create Rule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PROVISION STAFF MEMBER (SCENE 1: STAFF PROVISIONING) */}
+      {showStaffModal && (
+        <div className="dialog-backdrop">
+          <div className="dialog-panel" style={{ maxWidth: '440px' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, margin: 0 }}>Provision Staff Member (Scene 1)</h3>
+                <p style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+                  Admin only. Authorized role for sales & billing operations.
+                </p>
+              </div>
+              <button className="btn-icon-circle" onClick={() => setShowStaffModal(false)}>✕</button>
+            </div>
+
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Full Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Bob Miller"
+                  className="input-field"
+                  value={staffName}
+                  onChange={(e) => setStaffName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Staff Email Address</label>
+                <input
+                  type="email"
+                  placeholder="e.g. staff2@brightloop.com"
+                  className="input-field"
+                  value={staffEmail}
+                  onChange={(e) => setStaffEmail(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Temporary Password</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  value={staffPassword}
+                  onChange={(e) => setStaffPassword(e.target.value)}
+                />
+                <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Default unified demo password: <code style={{ color: 'var(--brand-orange)' }}>Brightloop@2026</code>
+                </span>
+              </div>
+            </div>
+
+            <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn btn-outline btn-sm" onClick={() => setShowStaffModal(false)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={handleCreateStaff}>
+                Provision Staff
               </button>
             </div>
           </div>
