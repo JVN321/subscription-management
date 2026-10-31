@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+.output/
+.tanstack/
+.turbo/
+build/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Local persistent data & Docker host mounts
+data/
+postgres_data/
+redis_data/
+media/
+*.sqlite
+*.sqlite-journal
+
+# CodeGraph temporary SQLite files
+.codegraph/*.db-shm
+.codegraph/*.db-wal
+.codegraph/*.lock
+
+# Logs & monitoring
+logs/
+*.log
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test & coverage artifacts
+coverage/
+.nyc_output/
