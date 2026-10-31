@@ -93,15 +93,15 @@ Overall Build Completion: [==================================--] 94%
 7. **Task 07: Git Identity Alignment & Author Rectification** (`commit d770ab7`)
    - Rewrote git history with `git filter-branch` to ensure all commits are properly attributed to `JVN321 <johnvnettady@gmail.com>`.
 
-### Current Tasks (In Progress)
-- [ ] **Task 08: Enhanced Subscriptions Management View**:
-  - Add dedicated "Subscriptions" management tab to the UI allowing Admin/Staff to view, pause, resume, and cancel subscriptions.
-- [ ] **Task 09: Dedicated Customer Self-Service Portal**:
-  - When switched to the "Customer" persona, show customer-scoped subscriptions, one-click pause/resume, invoice payment modal, and PDF downloads.
-- [ ] **Task 10: Manual "Run Billing Scan" UI Trigger**:
-  - Direct UI action button allowing operators to trigger an immediate billing run and receive real-time feedback.
-- [ ] **Task 11: Product Catalog & Pricing Table View**:
-  - Add clean catalog inspection tab displaying products, variants (e.g. +$560 Odoo), and billing intervals.
+### Current Tasks (Completed in this Phase)
+- [x] **Task 08: Enhanced Subscriptions Management View**:
+  - Added dedicated Subscriptions management view with real-time status counts (Active, Paused) and direct Pause / Resume controls (`PATCH /api/v1/subscriptions/:id/status`).
+- [x] **Task 09: Dedicated Customer Self-Service Portal**:
+  - Implemented multi-account customer switcher, customer subscription list with Pause / Resume actions, invoice statements table with direct modal payment settlement, and vector PDF downloads.
+- [x] **Task 10: Manual "Run Billing Scan" UI Trigger**:
+  - Implemented direct header action button calling `POST /api/v1/billing/trigger` with instant scan result toast notifications and data reload.
+- [x] **Task 11: Product Catalog & Pricing Table View**:
+  - Built software catalog panel displaying base sales price, brand variants (e.g. +$560.00 Odoo adjustment), and billing interval rules.
 
 ---
 
