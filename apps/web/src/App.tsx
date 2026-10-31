@@ -10,7 +10,6 @@ import {
   Play,
   CheckCircle2,
   AlertCircle,
-  Clock,
   Download,
   CreditCard,
   Plus,
@@ -20,17 +19,7 @@ import {
   Sun,
   Moon,
   Search,
-  Bell,
-  Cpu,
-  Activity,
-  Layers,
-  Calendar,
-  DollarSign,
-  ArrowUpRight,
-  ExternalLink,
-  ChevronDown,
-  Lock,
-  Database
+  DollarSign
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:3001/api/v1';
@@ -143,7 +132,7 @@ export function App() {
       fetch(`${API_BASE}/billing/scheduler`).then((r) => r.json()).then((res) => {
         if (res?.data) setScheduler(res.data);
       }).catch(() => {});
-    }, 8000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [currentRole]);
 
@@ -158,11 +147,11 @@ export function App() {
       });
       const data = await res.json();
       if (data?.data) {
-        showToast(`Billing scan executed: ${data.data.generatedCount} generated, ${data.data.skippedCount} skipped.`);
+        showToast(`Billing scan complete: ${data.data.generatedCount} generated, ${data.data.skippedCount} skipped`);
         loadData();
       }
     } catch (e) {
-      showToast('Billing scan execution failed');
+      showToast('Billing scan failed');
     } finally {
       setBillingLoading(false);
     }
@@ -177,7 +166,7 @@ export function App() {
       });
       const data = await res.json();
       if (data?.data) {
-        showToast('Quotation converted to active subscription');
+        showToast('Quotation converted to subscription');
         loadData();
         setActiveTab('subscriptions');
       }
@@ -260,7 +249,7 @@ export function App() {
       });
 
       if (res.ok) {
-        showToast('New quotation created');
+        showToast('Quotation created');
         setShowQuoteModal(false);
         loadData();
         setActiveTab('quotations');
@@ -277,6 +266,12 @@ export function App() {
     subs: subscriptions.filter((s) => s.customerId === customers[0]?.id || customers.length === 1),
     invs: invoices.filter((i) => i.customerId === customers[0]?.id || customers.length === 1)
   };
+
+  const upcomingRenewals = subscriptions
+    .filter((s) => s.status === 'ACTIVE')
+    .slice(0, 4);
+
+  const overdueInvoices = invoices.filter((i) => i.isOverdue);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -305,7 +300,7 @@ export function App() {
         </div>
       )}
 
-      {/* TOP COMPACT NAVIGATION BAR (Precision Engineered Header) */}
+      {/* TOP BAR: Clean, Deliberate, Restrained */}
       <header
         style={{
           borderBottom: '1px solid var(--border-subtle)',
@@ -313,7 +308,7 @@ export function App() {
           position: 'sticky',
           top: 0,
           zIndex: 100,
-          height: '48px',
+          height: '46px',
           display: 'flex',
           alignItems: 'center'
         }}
@@ -330,109 +325,81 @@ export function App() {
             gap: '1rem'
           }}
         >
-          {/* Left: Industrial Brand Mark & Telemetry */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  backgroundColor: 'var(--brand-orange)',
-                  borderRadius: 'var(--radius-xs)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#FFFFFF'
-                }}
-              >
-                <Repeat size={13} strokeWidth={2.5} />
-              </div>
-              <span style={{ fontSize: '0.9375rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
-                BRIGHTLOOP
-              </span>
+          {/* Brand Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <div
+              style={{
+                width: '22px',
+                height: '22px',
+                backgroundColor: 'var(--brand-orange)',
+                borderRadius: 'var(--radius-xs)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF'
+              }}
+            >
+              <Repeat size={13} strokeWidth={2.5} />
             </div>
-
-            <div style={{ height: '14px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <span className="status-signal signal-active">
-                <span className="signal-dot" />
-                <span>ENGINE ONLINE</span>
-              </span>
-              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                LATENCY: {report?.queryTimeMs || 4}ms
-              </span>
-            </div>
+            <span style={{ fontSize: '0.875rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+              BRIGHTLOOP
+            </span>
           </div>
 
-          {/* Center: Search Field */}
-          <div
-            style={{
-              position: 'relative',
-              maxWidth: '360px',
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-          >
-            <Search size={13} style={{ position: 'absolute', left: '0.625rem', color: 'var(--text-muted)' }} />
+          {/* Search */}
+          <div style={{ position: 'relative', maxWidth: '320px', width: '100%' }}>
+            <Search size={13} style={{ position: 'absolute', left: '0.625rem', top: '0.45rem', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="Search contracts, invoices, accounts... (⌘K)"
+              placeholder="Search invoices, subscriptions, customers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input-field"
               style={{
-                height: '1.875rem',
-                paddingLeft: '2rem',
+                height: '1.75rem',
+                paddingLeft: '1.875rem',
                 fontSize: '0.75rem',
                 backgroundColor: 'var(--bg-well)'
               }}
             />
           </div>
 
-          {/* Right: Circular Icon Controls, Role, and User Chip */}
+          {/* Controls: Refresh, Theme Switcher, Role Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {/* Refresh */}
             <button
               className="btn-icon-circle"
               onClick={loadData}
-              title="Refresh telemetry"
+              title="Refresh"
               disabled={loading}
+              style={{ width: '28px', height: '28px' }}
             >
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             </button>
 
-            {/* Notifications */}
-            <button className="btn-icon-circle" title="System alerts">
-              <Bell size={13} />
-            </button>
-
-            {/* Theme Toggle */}
             <button
               className="btn-icon-circle"
               onClick={toggleTheme}
               title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+              style={{ width: '28px', height: '28px' }}
             >
-              {theme === 'light' ? <Moon size={13} /> : <Sun size={13} color="var(--brand-orange)" />}
+              {theme === 'light' ? <Moon size={12} /> : <Sun size={12} color="var(--brand-orange)" />}
             </button>
 
-            <div style={{ height: '14px', width: '1px', backgroundColor: 'var(--border-subtle)', margin: '0 0.25rem' }} />
+            <div style={{ height: '14px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
 
-            {/* Persona Switcher Pill */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 backgroundColor: 'var(--bg-well)',
                 border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '0.15rem 0.5rem',
-                gap: '0.375rem',
-                height: '1.875rem'
+                borderRadius: 'var(--radius-xs)',
+                padding: '0 0.5rem',
+                height: '1.75rem',
+                fontSize: '0.75rem'
               }}
             >
-              <Shield size={12} color="var(--brand-orange)" />
+              <span style={{ color: 'var(--text-muted)', marginRight: '0.25rem' }}>Role:</span>
               <select
                 value={currentRole}
                 onChange={(e) => setCurrentRole(e.target.value as any)}
@@ -446,40 +413,21 @@ export function App() {
                   outline: 'none'
                 }}
               >
-                <option value="admin">Role: Admin</option>
-                <option value="staff">Role: Staff</option>
-                <option value="customer">Role: Customer</option>
+                <option value="admin">Admin</option>
+                <option value="staff">Staff</option>
+                <option value="customer">Customer</option>
               </select>
-            </div>
-
-            {/* User Avatar */}
-            <div
-              style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--text-primary)',
-                color: 'var(--text-inverse)',
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              title="Signed in operator"
-            >
-              {currentRole === 'customer' ? 'SC' : 'OP'}
             </div>
           </div>
         </div>
       </header>
 
-      {/* SUB-HEADER: TECHNICAL NAVIGATION & SCHEDULER HORIZON */}
+      {/* SUB-HEADER: Concise Section Navigation */}
       <div
         style={{
           borderBottom: '1px solid var(--border-subtle)',
           backgroundColor: 'var(--bg-panel-elevated)',
-          padding: '0.5rem 1.25rem'
+          padding: '0.375rem 1.25rem'
         }}
       >
         <div
@@ -490,36 +438,27 @@ export function App() {
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '0.75rem'
+            gap: '0.5rem'
           }}
         >
-          {/* Segmented Navigation */}
+          {/* Tabs */}
           <nav className="nav-segmented">
             <button
               className={`nav-tab-item ${activeTab === 'dashboard' ? 'active' : ''}`}
               onClick={() => setActiveTab('dashboard')}
             >
-              <LayoutDashboard size={13} />
-              <span>Operations Console</span>
+              <LayoutDashboard size={12} />
+              <span>Dashboard</span>
             </button>
             <button
               className={`nav-tab-item ${activeTab === 'quotations' ? 'active' : ''}`}
               onClick={() => setActiveTab('quotations')}
             >
-              <FileText size={13} />
+              <FileText size={12} />
               <span>Quotations</span>
               {quotations.filter((q) => q.status === 'SENT').length > 0 && (
-                <span
-                  style={{
-                    backgroundColor: 'var(--brand-orange)',
-                    color: '#FFFFFF',
-                    borderRadius: 'var(--radius-full)',
-                    fontSize: '0.625rem',
-                    padding: '0 0.35rem',
-                    fontWeight: 700
-                  }}
-                >
-                  {quotations.filter((q) => q.status === 'SENT').length}
+                <span style={{ color: 'var(--brand-orange)', fontWeight: 700, fontSize: '0.6875rem' }}>
+                  ({quotations.filter((q) => q.status === 'SENT').length})
                 </span>
               )}
             </button>
@@ -527,30 +466,18 @@ export function App() {
               className={`nav-tab-item ${activeTab === 'subscriptions' ? 'active' : ''}`}
               onClick={() => setActiveTab('subscriptions')}
             >
-              <Repeat size={13} />
+              <Repeat size={12} />
               <span>Subscriptions</span>
-              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                ({subscriptions.length})
-              </span>
             </button>
             <button
               className={`nav-tab-item ${activeTab === 'invoices' ? 'active' : ''}`}
               onClick={() => setActiveTab('invoices')}
             >
-              <Receipt size={13} />
-              <span>Invoices & AR</span>
-              {invoices.filter((i) => i.isOverdue).length > 0 && (
-                <span
-                  style={{
-                    backgroundColor: 'var(--status-danger)',
-                    color: '#FFFFFF',
-                    borderRadius: 'var(--radius-full)',
-                    fontSize: '0.625rem',
-                    padding: '0 0.35rem',
-                    fontWeight: 700
-                  }}
-                >
-                  {invoices.filter((i) => i.isOverdue).length}
+              <Receipt size={12} />
+              <span>Invoices & Payments</span>
+              {overdueInvoices.length > 0 && (
+                <span style={{ color: 'var(--status-danger)', fontWeight: 700, fontSize: '0.6875rem' }}>
+                  ({overdueInvoices.length})
                 </span>
               )}
             </button>
@@ -558,387 +485,227 @@ export function App() {
               className={`nav-tab-item ${activeTab === 'catalog' ? 'active' : ''}`}
               onClick={() => setActiveTab('catalog')}
             >
-              <Package size={13} />
-              <span>Catalog & Plans</span>
+              <Package size={12} />
+              <span>Catalog</span>
             </button>
             <button
               className={`nav-tab-item ${activeTab === 'portal' ? 'active' : ''}`}
               onClick={() => setActiveTab('portal')}
             >
-              <Users size={13} />
+              <Users size={12} />
               <span>Customer Portal</span>
             </button>
           </nav>
 
-          {/* Right: Scheduler Status Pill & Manual Trigger Action */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.75rem',
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--text-secondary)'
-              }}
-            >
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: scheduler?.isRunning ? 'var(--brand-orange)' : 'var(--text-muted)'
-                }}
-              />
-              <span>
-                SCHEDULER: {scheduler?.isRunning ? `TICK ${scheduler.intervalSeconds}s` : 'STOPPED'}
-              </span>
-              <span style={{ color: 'var(--text-muted)' }}>|</span>
-              <span>
-                TOTAL RUNS: {scheduler?.totalRuns || 0}
-              </span>
-            </div>
-
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={handleTriggerBilling}
-              disabled={billingLoading}
-            >
-              <Play size={12} />
-              <span>{billingLoading ? 'Executing Cycle...' : 'Run Billing Scan'}</span>
-            </button>
-          </div>
+          {/* Right Action: Billing Scan */}
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleTriggerBilling}
+            disabled={billingLoading}
+          >
+            <Play size={11} />
+            <span>{billingLoading ? 'Processing...' : 'Run Billing Scan'}</span>
+          </button>
         </div>
       </div>
 
-      {/* MAIN WORKSPACE CONTENT */}
-      <main style={{ maxWidth: '1440px', margin: '0 auto', width: '100%', padding: '1.25rem', flex: 1 }}>
+      {/* MAIN CONTENT AREA */}
+      <main style={{ maxWidth: '1440px', margin: '0 auto', width: '100%', padding: '1rem 1.25rem', flex: 1 }}>
         {/* ========================================================================= */}
-        {/* TAB 1: OPERATIONS CONSOLE (THE INDUSTRIAL DASHBOARD) */}
+        {/* TAB 1: DASHBOARD (DESLOPIFIED OPERATIONS OVERVIEW) */}
         {/* ========================================================================= */}
         {activeTab === 'dashboard' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* PRIMARY METRIC INSTRUMENT STRIP (Contiguous, Hairline Dividers) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* PRIMARY SUMMARY STRIP */}
             <div className="instrument-strip">
               <div className="instrument-strip-cell">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    Monthly Recurring Revenue
-                  </span>
-                  <DollarSign size={14} color="var(--brand-orange)" />
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Monthly Recurring Revenue
                 </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)', marginTop: '0.15rem' }}>
                   ${report ? parseFloat(report.mrr).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
                 </div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  Normalized monthly contracted run-rate
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Active contracted run-rate
                 </div>
               </div>
 
               <div className="instrument-strip-cell">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    Active Subscriptions
-                  </span>
-                  <Repeat size={14} color="var(--brand-orange)" />
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Active Subscriptions
                 </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)', marginTop: '0.15rem' }}>
                   {report ? report.activeSubscriptions : subscriptions.filter((s) => s.status === 'ACTIVE').length}
                 </div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  {report?.pausedSubscriptions || 0} paused contracts • 0 cancellations
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  {report?.pausedSubscriptions || 0} paused
                 </div>
               </div>
 
               <div className="instrument-strip-cell">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    Settled Revenue
-                  </span>
-                  <CheckCircle2 size={14} color="var(--status-success)" />
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Settled Revenue
                 </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)', color: 'var(--status-success)' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--status-success)', marginTop: '0.15rem' }}>
                   ${report ? parseFloat(report.totalRevenueCollected).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
                 </div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  100% reconciled across wire & cards
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  Total collected
                 </div>
               </div>
 
               <div className="instrument-strip-cell">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    Accounts Receivable
-                  </span>
-                  <AlertCircle size={14} color="var(--status-danger)" />
+                <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Outstanding Balance
                 </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)', color: parseFloat(report?.totalAmountOwed || '0') > 0 ? 'var(--status-danger)' : 'var(--text-primary)' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: parseFloat(report?.totalAmountOwed || '0') > 0 ? 'var(--status-danger)' : 'var(--text-primary)', marginTop: '0.15rem' }}>
                   ${report ? parseFloat(report.totalAmountOwed).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
                 </div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--status-danger)', marginTop: '0.25rem' }}>
-                  {report?.overdueInvoicesCount || 0} overdue invoice (${report ? parseFloat(report.overdueAmount).toFixed(2) : '0.00'})
+                <div style={{ fontSize: '0.6875rem', color: 'var(--status-danger)' }}>
+                  {overdueInvoices.length} overdue (${report ? parseFloat(report.overdueAmount).toFixed(2) : '0.00'})
                 </div>
               </div>
             </div>
 
-            {/* TWO-COLUMN INDUSTRIAL WORKSPACE (68% Main / 32% Side Panels) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
-              {/* LEFT COLUMN: PRIMARY WORKSPACE */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {/* Billing Engine Telemetry Panel */}
-                <div className="instrument-panel" style={{ padding: '1rem 1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Cpu size={15} color="var(--brand-orange)" />
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Automatic Recurring Billing Telemetry
-                      </span>
-                    </div>
-                    <span className="status-signal signal-orange">
-                      <span className="signal-dot" />
-                      <span>Lock: Advisory 89214 Safe</span>
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                      gap: '0.75rem',
-                      padding: '0.75rem',
-                      backgroundColor: 'var(--bg-well)',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.75rem'
-                    }}
-                  >
-                    <div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem' }}>Execution Mode</div>
-                      <div style={{ fontWeight: 600, marginTop: '0.15rem' }}>In-Process Scheduler</div>
-                    </div>
-                    <div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem' }}>Last Scan Executed</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, marginTop: '0.15rem' }}>
-                        {scheduler?.lastRunAt ? new Date(scheduler.lastRunAt).toLocaleTimeString() : 'Pending'}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem' }}>Last Batch Generated</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)', marginTop: '0.15rem' }}>
-                        {scheduler?.lastGeneratedCount || 0} invoices
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.6875rem' }}>Duplicates Skipped</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, marginTop: '0.15rem' }}>
-                        {scheduler?.lastSkippedCount || 0} (Idempotent)
-                      </div>
-                    </div>
-                  </div>
+            {/* TWO-COLUMN WORKSPACE: Recent Invoices & Action Panels */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(280px, 1fr)', gap: '1rem' }}>
+              {/* Central Area: Invoices Table */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h2 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Recent Invoices
+                  </h2>
+                  <button className="btn btn-outline btn-sm" onClick={() => setActiveTab('invoices')}>
+                    <span>All Invoices</span>
+                    <ArrowRight size={11} />
+                  </button>
                 </div>
 
-                {/* Primary Data Table: Operational Invoices */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Receipt size={14} color="var(--brand-orange)" />
-                      <h3 style={{ fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Recent Invoices & Accounts Receivable
-                      </h3>
-                    </div>
-                    <button className="btn btn-outline btn-sm" onClick={() => setActiveTab('invoices')}>
-                      <span>View All Invoices</span>
-                      <ArrowRight size={12} />
-                    </button>
-                  </div>
-
-                  <div className="table-wrapper">
-                    <table className="table-industrial">
-                      <thead>
+                <div className="table-wrapper">
+                  <table className="table-industrial">
+                    <thead>
+                      <tr>
+                        <th>Invoice</th>
+                        <th>Customer</th>
+                        <th>Billing Period</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'right' }}>Total</th>
+                        <th style={{ textAlign: 'right' }}>Balance</th>
+                        <th style={{ textAlign: 'center' }}>PDF</th>
+                        <th style={{ textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.length === 0 ? (
                         <tr>
-                          <th>Invoice Ref</th>
-                          <th>Customer</th>
-                          <th>Period Horizon</th>
-                          <th>Status</th>
-                          <th style={{ textAlign: 'right' }}>Total</th>
-                          <th style={{ textAlign: 'right' }}>Balance Due</th>
-                          <th style={{ textAlign: 'center' }}>PDF</th>
-                          <th style={{ textAlign: 'right' }}>Action</th>
+                          <td colSpan={8} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+                            No invoices generated yet. Click "Run Billing Scan" to process due subscriptions.
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {invoices.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
-                              No invoices generated yet.
-                            </td>
-                          </tr>
-                        ) : (
-                          invoices.slice(0, 6).map((inv) => {
-                            const cust = customers.find((c) => c.id === inv.customerId);
-                            const isPaid = inv.status === 'PAID';
-                            const outstanding = Math.max(0, parseFloat(inv.totalAmount) - parseFloat(inv.amountPaid));
+                      ) : (
+                        invoices.slice(0, 5).map((inv) => {
+                          const cust = customers.find((c) => c.id === inv.customerId);
+                          const isPaid = inv.status === 'PAID';
+                          const outstanding = Math.max(0, parseFloat(inv.totalAmount) - parseFloat(inv.amountPaid));
 
-                            return (
-                              <tr key={inv.id}>
-                                <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
-                                <td>
-                                  <div style={{ fontWeight: 500 }}>
-                                    {inv.customerSnapshot?.companyName || cust?.companyName || 'Corporate Client'}
-                                  </div>
-                                </td>
-                                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                  {inv.billingPeriodStart} ➔ {inv.billingPeriodEnd}
-                                </td>
-                                <td>
-                                  <span
-                                    className={`status-signal ${
-                                      isPaid ? 'signal-active' : inv.isOverdue ? 'signal-danger' : 'signal-orange'
-                                    }`}
-                                  >
-                                    <span className="signal-dot" />
-                                    <span>{isPaid ? 'PAID' : inv.isOverdue ? 'OVERDUE' : inv.status}</span>
-                                  </span>
-                                </td>
-                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                                  ${parseFloat(inv.totalAmount).toFixed(2)}
-                                </td>
-                                <td
-                                  style={{
-                                    textAlign: 'right',
-                                    fontFamily: 'var(--font-mono)',
-                                    fontWeight: 700,
-                                    color: outstanding > 0 ? 'var(--status-danger)' : 'var(--status-success)'
-                                  }}
+                          return (
+                            <tr key={inv.id}>
+                              <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</td>
+                              <td>{inv.customerSnapshot?.companyName || cust?.companyName || 'Corporate Client'}</td>
+                              <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {inv.billingPeriodStart} to {inv.billingPeriodEnd}
+                              </td>
+                              <td>
+                                <span className={`status-signal ${isPaid ? 'signal-active' : inv.isOverdue ? 'signal-danger' : 'signal-orange'}`}>
+                                  <span>{isPaid ? 'PAID' : inv.isOverdue ? 'OVERDUE' : inv.status}</span>
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                                ${parseFloat(inv.totalAmount).toFixed(2)}
+                              </td>
+                              <td
+                                style={{
+                                  textAlign: 'right',
+                                  fontFamily: 'var(--font-mono)',
+                                  fontWeight: 700,
+                                  color: outstanding > 0 ? 'var(--status-danger)' : 'var(--status-success)'
+                                }}
+                              >
+                                ${outstanding.toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <a
+                                  href={`${API_BASE}/invoices/${inv.id}/pdf`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn-icon-circle"
+                                  title="Download PDF"
+                                  style={{ width: '22px', height: '22px' }}
                                 >
-                                  ${outstanding.toFixed(2)}
-                                </td>
-                                <td style={{ textAlign: 'center' }}>
-                                  <a
-                                    href={`${API_BASE}/invoices/${inv.id}/pdf`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn-icon-circle"
-                                    title="Download PDF"
-                                    style={{ width: '24px', height: '24px' }}
+                                  <Download size={10} />
+                                </a>
+                              </td>
+                              <td style={{ textAlign: 'right' }}>
+                                {!isPaid ? (
+                                  <button
+                                    className="btn btn-primary btn-sm"
+                                    style={{ height: '1.5rem', padding: '0 0.5rem', fontSize: '0.6875rem' }}
+                                    onClick={() => {
+                                      setSelectedInvoice(inv);
+                                      setPaymentAmount(outstanding.toFixed(2));
+                                      setShowPaymentModal(true);
+                                    }}
                                   >
-                                    <Download size={11} />
-                                  </a>
-                                </td>
-                                <td style={{ textAlign: 'right' }}>
-                                  {!isPaid ? (
-                                    <button
-                                      className="btn btn-primary btn-sm"
-                                      onClick={() => {
-                                        setSelectedInvoice(inv);
-                                        setPaymentAmount(outstanding.toFixed(2));
-                                        setShowPaymentModal(true);
-                                      }}
-                                    >
-                                      Record
-                                    </button>
-                                  ) : (
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', fontWeight: 600 }}>Settled</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                                    Pay
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: '0.6875rem', color: 'var(--status-success)', fontWeight: 600 }}>Settled</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              {/* RIGHT COLUMN: SECONDARY INFORMATION PANELS */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {/* System Activity Stream */}
-                <div className="instrument-panel" style={{ padding: '1rem 1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Activity size={14} color="var(--brand-orange)" />
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Operational Audit Trail
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>LIVE STREAM</span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', fontSize: '0.75rem' }}>
-                    <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-hairline)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
-                        <span>SYSTEM CRON</span>
-                        <span style={{ fontFamily: 'var(--font-mono)' }}>T-00:12</span>
-                      </div>
-                      <div style={{ fontWeight: 500, marginTop: '0.15rem' }}>
-                        Automated scan evaluated active subscriptions with 0 duplicate collisions.
-                      </div>
-                    </div>
-
-                    <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-hairline)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
-                        <span>FINANCE RECONCILE</span>
-                        <span style={{ fontFamily: 'var(--font-mono)' }}>SETTLED</span>
-                      </div>
-                      <div style={{ fontWeight: 500, marginTop: '0.15rem' }}>
-                        Wire transfer payment reconciled against invoice with zero float drift.
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
-                        <span>CATALOG DISPATCH</span>
-                        <span style={{ fontFamily: 'var(--font-mono)' }}>ODOO +560</span>
-                      </div>
-                      <div style={{ fontWeight: 500, marginTop: '0.15rem' }}>
-                        Brand variant pricing adjustment correctly applied to new quotes.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Overdue Collection Queue */}
-                <div className="instrument-panel" style={{ padding: '1rem 1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <AlertCircle size={14} color="var(--status-danger)" />
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Overdue Invoices Queue
-                      </span>
-                    </div>
-                    <span className="status-signal signal-danger">
-                      <span className="signal-dot" />
-                      <span>{invoices.filter((i) => i.isOverdue).length} PENDING</span>
+              {/* Side Panels: Upcoming Renewals & Overdue Actions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Overdue Invoices Alert Panel */}
+                <div className="instrument-panel" style={{ padding: '0.875rem 1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Overdue Invoices
+                    </span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--status-danger)', fontWeight: 700 }}>
+                      {overdueInvoices.length} REQUIRED
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {invoices.filter((i) => i.isOverdue).length === 0 ? (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
-                        No overdue accounts receivable.
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                    {overdueInvoices.length === 0 ? (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        All invoice balances are up to date.
                       </div>
                     ) : (
-                      invoices.filter((i) => i.isOverdue).map((inv) => (
+                      overdueInvoices.map((inv) => (
                         <div
                           key={inv.id}
                           style={{
-                            padding: '0.625rem',
+                            padding: '0.5rem',
                             backgroundColor: 'var(--bg-well)',
-                            borderRadius: 'var(--radius-sm)',
-                            borderLeft: '3px solid var(--status-danger)',
+                            borderRadius: 'var(--radius-xs)',
                             display: 'flex',
                             justifyContent: 'space-between',
-                            alignItems: 'center'
+                            alignItems: 'center',
+                            fontSize: '0.75rem'
                           }}
                         >
                           <div>
-                            <div style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
-                              {inv.invoiceNumber}
-                            </div>
-                            <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
-                              Due Date: {inv.dueDate}
-                            </div>
+                            <div style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{inv.invoiceNumber}</div>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Due: {inv.dueDate}</div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--status-danger)' }}>
@@ -946,14 +713,14 @@ export function App() {
                             </div>
                             <button
                               className="btn btn-outline btn-sm"
-                              style={{ height: '1.5rem', padding: '0 0.5rem', fontSize: '0.6875rem', marginTop: '0.25rem' }}
+                              style={{ height: '1.375rem', padding: '0 0.4rem', fontSize: '0.625rem', marginTop: '0.15rem' }}
                               onClick={() => {
                                 setSelectedInvoice(inv);
                                 setPaymentAmount(inv.outstandingAmount || inv.totalAmount);
                                 setShowPaymentModal(true);
                               }}
                             >
-                              Collect
+                              Settle
                             </button>
                           </div>
                         </div>
@@ -962,28 +729,48 @@ export function App() {
                   </div>
                 </div>
 
-                {/* Database Infrastructure Status */}
-                <div className="instrument-panel" style={{ padding: '1rem 1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
-                    <Database size={14} color="var(--brand-orange)" />
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Infrastructure Telemetry
+                {/* Upcoming Renewals Panel */}
+                <div className="instrument-panel" style={{ padding: '0.875rem 1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Upcoming Billing Horizons
+                    </span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                      Active
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Relational Store</span>
-                      <span style={{ fontFamily: 'var(--font-mono)' }}>PostgreSQL 16 (Port 5433)</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Numeric Money Invariant</span>
-                      <span style={{ fontFamily: 'var(--font-mono)' }}>NUMERIC(14, 4) Zero Float</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Locking Protocol</span>
-                      <span style={{ fontFamily: 'var(--font-mono)' }}>pg_try_advisory_xact_lock</span>
-                    </div>
+                    {upcomingRenewals.length === 0 ? (
+                      <div style={{ color: 'var(--text-muted)' }}>No active contracts.</div>
+                    ) : (
+                      upcomingRenewals.map((sub) => {
+                        const cust = customers.find((c) => c.id === sub.customerId);
+                        return (
+                          <div
+                            key={sub.id}
+                            style={{
+                              padding: '0.5rem',
+                              backgroundColor: 'var(--bg-well)',
+                              borderRadius: 'var(--radius-xs)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 600 }}>{cust?.companyName || 'Corporate Client'}</div>
+                              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
+                                {sub.subscriptionNumber}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)' }}>
+                              {sub.nextBillingDate}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               </div>
@@ -995,17 +782,12 @@ export function App() {
         {/* TAB 2: QUOTATIONS (SCENE 3) */}
         {/* ========================================================================= */}
         {activeTab === 'quotations' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Quotations & Sales Proposals</h2>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Manage multi-tier proposals with 1-click atomic conversion into active contracts.
-                </p>
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Quotations</h2>
               <button className="btn btn-primary btn-sm" onClick={() => setShowQuoteModal(true)}>
-                <Plus size={13} />
-                <span>Create New Quotation</span>
+                <Plus size={12} />
+                <span>New Quotation</span>
               </button>
             </div>
 
@@ -1014,18 +796,18 @@ export function App() {
                 <thead>
                   <tr>
                     <th>Quote Ref</th>
-                    <th>Customer Account</th>
-                    <th>Billing Plan</th>
+                    <th>Customer</th>
+                    <th>Plan</th>
                     <th>Status</th>
-                    <th>Expiry Horizon</th>
-                    <th>Converted Contract</th>
+                    <th>Expires</th>
+                    <th>Converted Subscription</th>
                     <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {quotations.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
                         No quotations found.
                       </td>
                     </tr>
@@ -1042,10 +824,9 @@ export function App() {
                             <div style={{ fontWeight: 500 }}>{cust?.companyName || 'Corporate Client'}</div>
                             <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>{cust?.contactName}</div>
                           </td>
-                          <td>{plan?.name || 'Enterprise Annual'}</td>
+                          <td>{plan?.name || 'Standard Plan'}</td>
                           <td>
                             <span className={`status-signal ${isConverted ? 'signal-active' : 'signal-orange'}`}>
-                              <span className="signal-dot" />
                               <span>{q.status}</span>
                             </span>
                           </td>
@@ -1068,7 +849,7 @@ export function App() {
                                 onClick={() => handleConvertQuote(q.id)}
                               >
                                 <span>Convert to Sub</span>
-                                <ArrowRight size={12} />
+                                <ArrowRight size={11} />
                               </button>
                             ) : (
                               <span style={{ fontSize: '0.75rem', color: 'var(--status-success)', fontWeight: 600 }}>
@@ -1090,23 +871,16 @@ export function App() {
         {/* TAB 3: SUBSCRIPTIONS */}
         {/* ========================================================================= */}
         {activeTab === 'subscriptions' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Contracted Subscriptions</h2>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Active recurring agreements, lifecycle state toggles, and next billing horizons.
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <span className="status-signal signal-active">
-                  <span className="signal-dot" />
-                  <span>{subscriptions.filter((s) => s.status === 'ACTIVE').length} Active</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Subscriptions</h2>
+              <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
+                <span style={{ color: 'var(--status-success)', fontWeight: 600 }}>
+                  {subscriptions.filter((s) => s.status === 'ACTIVE').length} Active
                 </span>
-                <span className="status-signal signal-warning">
-                  <span className="signal-dot" />
-                  <span>{subscriptions.filter((s) => s.status === 'PAUSED').length} Paused</span>
+                <span style={{ color: 'var(--text-muted)' }}>•</span>
+                <span style={{ color: 'var(--status-warning)', fontWeight: 600 }}>
+                  {subscriptions.filter((s) => s.status === 'PAUSED').length} Paused
                 </span>
               </div>
             </div>
@@ -1115,12 +889,12 @@ export function App() {
               <table className="table-industrial">
                 <thead>
                   <tr>
-                    <th>Contract Ref</th>
+                    <th>Subscription</th>
                     <th>Customer</th>
                     <th>Plan</th>
                     <th>Status</th>
-                    <th>Commencement</th>
-                    <th>Next Scheduled Horizon</th>
+                    <th>Start Date</th>
+                    <th>Next Billing Date</th>
                     <th>Terms</th>
                     <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
@@ -1140,12 +914,7 @@ export function App() {
                         </td>
                         <td>{plan?.name || 'Standard Monthly'}</td>
                         <td>
-                          <span
-                            className={`status-signal ${
-                              isActive ? 'signal-active' : sub.status === 'PAUSED' ? 'signal-warning' : 'signal-danger'
-                            }`}
-                          >
-                            <span className="signal-dot" />
+                          <span className={`status-signal ${isActive ? 'signal-active' : sub.status === 'PAUSED' ? 'signal-warning' : 'signal-danger'}`}>
                             <span>{sub.status}</span>
                           </span>
                         </td>
@@ -1153,15 +922,13 @@ export function App() {
                         <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)' }}>
                           {sub.nextBillingDate}
                         </td>
-                        <td>
-                          <span className="status-signal">{sub.paymentTerms || 'NET_30'}</span>
-                        </td>
+                        <td>{sub.paymentTerms || 'NET_30'}</td>
                         <td style={{ textAlign: 'right' }}>
                           <button
                             className="btn btn-outline btn-sm"
                             onClick={() => handleToggleSubStatus(sub.id, sub.status)}
                           >
-                            {isActive ? <Pause size={12} /> : <Play size={12} />}
+                            {isActive ? <Pause size={11} /> : <Play size={11} />}
                             <span>{isActive ? 'Pause' : 'Resume'}</span>
                           </button>
                         </td>
@@ -1178,17 +945,11 @@ export function App() {
         {/* TAB 4: INVOICES & PAYMENTS */}
         {/* ========================================================================= */}
         {activeTab === 'invoices' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Invoices & Receivables Ledger</h2>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Immutable financial snapshots, vector PDF statements, and settlement ledger.
-                </p>
-              </div>
-
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Invoices & Payments</h2>
               <button className="btn btn-primary btn-sm" onClick={handleTriggerBilling} disabled={billingLoading}>
-                <Play size={12} />
+                <Play size={11} />
                 <span>{billingLoading ? 'Processing...' : 'Run Billing Scan'}</span>
               </button>
             </div>
@@ -1197,17 +958,17 @@ export function App() {
               <table className="table-industrial">
                 <thead>
                   <tr>
-                    <th>Invoice No</th>
+                    <th>Invoice</th>
                     <th>Customer</th>
-                    <th>Billing Horizon</th>
+                    <th>Period</th>
                     <th>Status</th>
                     <th style={{ textAlign: 'right' }}>Subtotal</th>
                     <th style={{ textAlign: 'right' }}>Discount</th>
-                    <th style={{ textAlign: 'right' }}>Tax (20%)</th>
+                    <th style={{ textAlign: 'right' }}>Tax</th>
                     <th style={{ textAlign: 'right' }}>Total</th>
                     <th style={{ textAlign: 'right' }}>Balance Due</th>
                     <th style={{ textAlign: 'center' }}>PDF</th>
-                    <th style={{ textAlign: 'right' }}>Reconcile</th>
+                    <th style={{ textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1226,15 +987,10 @@ export function App() {
                           <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Due: {inv.dueDate}</div>
                         </td>
                         <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                          {inv.billingPeriodStart} ➔ {inv.billingPeriodEnd}
+                          {inv.billingPeriodStart} to {inv.billingPeriodEnd}
                         </td>
                         <td>
-                          <span
-                            className={`status-signal ${
-                              isPaid ? 'signal-active' : inv.isOverdue ? 'signal-danger' : 'signal-orange'
-                            }`}
-                          >
-                            <span className="signal-dot" />
+                          <span className={`status-signal ${isPaid ? 'signal-active' : inv.isOverdue ? 'signal-danger' : 'signal-orange'}`}>
                             <span>{isPaid ? 'PAID' : inv.isOverdue ? 'OVERDUE' : inv.status}</span>
                           </span>
                         </td>
@@ -1266,10 +1022,10 @@ export function App() {
                             target="_blank"
                             rel="noreferrer"
                             className="btn-icon-circle"
-                            title="Download Vector PDF"
-                            style={{ width: '24px', height: '24px' }}
+                            title="Download PDF"
+                            style={{ width: '22px', height: '22px' }}
                           >
-                            <Download size={11} />
+                            <Download size={10} />
                           </a>
                         </td>
                         <td style={{ textAlign: 'right' }}>
@@ -1302,51 +1058,40 @@ export function App() {
         {/* TAB 5: CATALOG & INTERVAL PLANS */}
         {/* ========================================================================= */}
         {activeTab === 'catalog' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Software Catalog & Variant Adjustments</h2>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Configured software solutions, multi-brand variant differentials (+560 Odoo brand), and interval plans.
-              </p>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Software Catalog</h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
               {products.map((p) => (
-                <div key={p.id} className="instrument-panel" style={{ padding: '1.125rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                <div key={p.id} className="instrument-panel" style={{ padding: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{p.name}</h3>
-                      <span className="status-signal signal-orange" style={{ marginTop: '0.25rem' }}>
-                        {p.productType}
-                      </span>
+                      <h3 style={{ fontSize: '0.9375rem', fontWeight: 700 }}>{p.name}</h3>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>{p.productType}</div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                        ${parseFloat(p.salesPrice).toFixed(2)}
-                      </div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>Base list price</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                      ${parseFloat(p.salesPrice).toFixed(2)}
                     </div>
                   </div>
 
-                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
-                    <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                      Brand Variant Differentials
+                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.625rem', marginTop: '0.625rem' }}>
+                    <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
+                      Brand Variants
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       {p.variants?.map((v: any) => (
                         <div
                           key={v.id}
                           style={{
                             display: 'flex',
-                            alignItems: 'center',
                             justifyContent: 'space-between',
-                            padding: '0.45rem 0.625rem',
+                            padding: '0.35rem 0.5rem',
                             backgroundColor: 'var(--bg-well)',
                             borderRadius: 'var(--radius-xs)',
                             fontSize: '0.75rem'
                           }}
                         >
-                          <span style={{ fontWeight: 500 }}>{v.name}</span>
+                          <span>{v.name}</span>
                           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-orange)' }}>
                             +{parseFloat(v.priceAdjustment).toFixed(2)}
                           </span>
@@ -1358,19 +1103,17 @@ export function App() {
               ))}
             </div>
 
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Billing Interval Plans</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            <div style={{ marginTop: '0.5rem' }}>
+              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.5rem' }}>Billing Interval Plans</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
                 {plans.map((pl) => (
-                  <div key={pl.id} className="instrument-panel" style={{ padding: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-                      <h4 style={{ fontWeight: 600, fontSize: '0.875rem' }}>{pl.name}</h4>
+                  <div key={pl.id} className="instrument-panel" style={{ padding: '0.875rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{pl.name}</span>
                       <span className="status-signal">{pl.billingInterval}</span>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <div>Min Seats: {pl.minQuantity} units</div>
-                      <div>Auto-Close on Expiry: {pl.autoClose ? 'Yes' : 'No'}</div>
-                      <div>Allows Contract Pause: {pl.allowPause ? 'Yes' : 'No'}</div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
+                      Min: {pl.minQuantity} units • Auto-close: {pl.autoClose ? 'Yes' : 'No'}
                     </div>
                   </div>
                 ))}
@@ -1383,46 +1126,41 @@ export function App() {
         {/* TAB 6: CUSTOMER SELF-SERVICE PORTAL */}
         {/* ========================================================================= */}
         {activeTab === 'portal' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div className="instrument-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--brand-orange)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="instrument-panel" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <div>
-                  <span className="status-signal signal-orange">Customer Self-Service Interface</span>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginTop: '0.25rem' }}>
-                    {customerPortalData.customer?.companyName || 'Corporate Client Account'}
+                  <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>
+                    {customerPortalData.customer?.companyName || 'Customer Portal'}
                   </h2>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Primary Contact: {customerPortalData.customer?.contactName} • {customerPortalData.customer?.email}
-                  </p>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Contact: {customerPortalData.customer?.contactName} • {customerPortalData.customer?.email}
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.625rem' }}>
-                  <div className="instrument-panel" style={{ padding: '0.625rem 1rem' }}>
-                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Active Plan</div>
-                    <div style={{ fontWeight: 700, color: 'var(--brand-orange)', fontSize: '0.8125rem' }}>
-                      Monthly Pro (Odoo Brand)
-                    </div>
+                <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
+                  <div className="instrument-panel" style={{ padding: '0.375rem 0.75rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Agreements: </span>
+                    <span style={{ fontWeight: 700 }}>{customerPortalData.subs.length}</span>
                   </div>
-                  <div className="instrument-panel" style={{ padding: '0.625rem 1rem' }}>
-                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Total Invoices</div>
-                    <div style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
-                      {customerPortalData.invs.length}
-                    </div>
+                  <div className="instrument-panel" style={{ padding: '0.375rem 0.75rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Invoices: </span>
+                    <span style={{ fontWeight: 700 }}>{customerPortalData.invs.length}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.5rem' }}>Active Agreements</h3>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>Subscriptions</h3>
               <div className="table-wrapper">
                 <table className="table-industrial">
                   <thead>
                     <tr>
-                      <th>Subscription ID</th>
+                      <th>Subscription</th>
                       <th>Status</th>
-                      <th>Commenced</th>
-                      <th>Next Horizon</th>
+                      <th>Start Date</th>
+                      <th>Next Billing Date</th>
                       <th>Terms</th>
                     </tr>
                   </thead>
@@ -1432,7 +1170,6 @@ export function App() {
                         <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{s.subscriptionNumber}</td>
                         <td>
                           <span className="status-signal signal-active">
-                            <span className="signal-dot" />
                             <span>{s.status}</span>
                           </span>
                         </td>
@@ -1449,17 +1186,17 @@ export function App() {
             </div>
 
             <div>
-              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.5rem' }}>Invoice Statements & Vector PDF</h3>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>Invoice Statements</h3>
               <div className="table-wrapper">
                 <table className="table-industrial">
                   <thead>
                     <tr>
-                      <th>Invoice No</th>
+                      <th>Invoice</th>
                       <th>Issue Date</th>
                       <th>Billing Period</th>
                       <th>Status</th>
                       <th style={{ textAlign: 'right' }}>Total</th>
-                      <th style={{ textAlign: 'center' }}>Action</th>
+                      <th style={{ textAlign: 'center' }}>PDF</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1472,7 +1209,6 @@ export function App() {
                         </td>
                         <td>
                           <span className={`status-signal ${inv.status === 'PAID' ? 'signal-active' : 'signal-orange'}`}>
-                            <span className="signal-dot" />
                             <span>{inv.status}</span>
                           </span>
                         </td>
@@ -1485,9 +1221,10 @@ export function App() {
                             target="_blank"
                             rel="noreferrer"
                             className="btn btn-primary btn-sm"
+                            style={{ height: '1.5rem', padding: '0 0.5rem', fontSize: '0.6875rem' }}
                           >
-                            <Download size={12} />
-                            <span>Download PDF</span>
+                            <Download size={10} />
+                            <span>PDF</span>
                           </a>
                         </td>
                       </tr>
@@ -1500,18 +1237,16 @@ export function App() {
         )}
       </main>
 
-      {/* ========================================================================= */}
       {/* MODAL: CREATE QUOTATION */}
-      {/* ========================================================================= */}
       {showQuoteModal && (
         <div className="dialog-backdrop">
           <div className="dialog-panel">
-            <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Generate New Quotation</h3>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700 }}>New Quotation</h3>
               <button className="btn-icon-circle" onClick={() => setShowQuoteModal(false)}>✕</button>
             </div>
 
-            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Customer</label>
                 <select
@@ -1526,7 +1261,7 @@ export function App() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Billing Plan</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Plan</label>
                 <select
                   className="input-field"
                   value={selectedPlan}
@@ -1571,7 +1306,7 @@ export function App() {
               )}
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Seats / Quantity</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Seats</label>
                 <input
                   type="number"
                   min={1}
@@ -1582,42 +1317,40 @@ export function App() {
               </div>
             </div>
 
-            <div style={{ padding: '0.875rem 1.25rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button className="btn btn-outline btn-sm" onClick={() => setShowQuoteModal(false)}>Cancel</button>
               <button className="btn btn-primary btn-sm" onClick={handleCreateQuote} disabled={loading}>
-                {loading ? 'Creating...' : 'Create Quotation'}
+                {loading ? 'Creating...' : 'Create'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
       {/* MODAL: RECORD PAYMENT */}
-      {/* ========================================================================= */}
       {showPaymentModal && selectedInvoice && (
         <div className="dialog-backdrop">
           <div className="dialog-panel">
-            <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Record Customer Settlement</h3>
-                <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Invoice Ref: {selectedInvoice.invoiceNumber}</p>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 700 }}>Record Payment</h3>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>Invoice: {selectedInvoice.invoiceNumber}</div>
               </div>
               <button className="btn-icon-circle" onClick={() => setShowPaymentModal(false)}>✕</button>
             </div>
 
-            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-              <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-well)', borderRadius: 'var(--radius-sm)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ padding: '0.625rem', backgroundColor: 'var(--bg-well)', borderRadius: 'var(--radius-xs)', fontSize: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Invoice Total:</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>${parseFloat(selectedInvoice.totalAmount).toFixed(2)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.15rem' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Settled to Date:</span>
                   <span style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(selectedInvoice.amountPaid).toFixed(2)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '0.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.25rem' }}>
-                  <span style={{ fontWeight: 600 }}>Outstanding Balance Due:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.25rem' }}>
+                  <span style={{ fontWeight: 600 }}>Balance Due:</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-orange)' }}>
                     ${Math.max(0, parseFloat(selectedInvoice.totalAmount) - parseFloat(selectedInvoice.amountPaid)).toFixed(2)}
                   </span>
@@ -1625,7 +1358,7 @@ export function App() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Payment Amount ($)</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Amount ($)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1642,17 +1375,17 @@ export function App() {
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                 >
-                  <option value="WIRE_TRANSFER">Wire Transfer (Fedwire / ACH)</option>
-                  <option value="CREDIT_CARD">Corporate Card</option>
-                  <option value="CHECK">Certified Bank Check</option>
+                  <option value="WIRE_TRANSFER">Wire Transfer</option>
+                  <option value="CREDIT_CARD">Credit Card</option>
+                  <option value="CHECK">Check</option>
                 </select>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Audit Reference</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>Reference Notes</label>
                 <input
                   type="text"
-                  placeholder="e.g. JPMorgan Wire Ref #100293"
+                  placeholder="e.g. Wire Reference #100293"
                   className="input-field"
                   value={paymentNote}
                   onChange={(e) => setPaymentNote(e.target.value)}
@@ -1660,10 +1393,10 @@ export function App() {
               </div>
             </div>
 
-            <div style={{ padding: '0.875rem 1.25rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button className="btn btn-outline btn-sm" onClick={() => setShowPaymentModal(false)}>Cancel</button>
               <button className="btn btn-primary btn-sm" onClick={handleRecordPayment} disabled={loading}>
-                {loading ? 'Processing...' : 'Confirm & Reconcile'}
+                {loading ? 'Recording...' : 'Confirm Payment'}
               </button>
             </div>
           </div>

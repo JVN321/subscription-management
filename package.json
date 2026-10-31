@@ -4,8 +4,8 @@
   "private": true,
   "packageManager": "pnpm@11.13.0",
   "scripts": {
-    "dev": "pnpm --parallel --filter \"@repo/*\" --filter \"apps/*\" dev",
-    "build": "pnpm --filter \"packages/*\" --filter \"apps/*\" build",
+    "dev": "pnpm --parallel --filter @repo/api --filter @repo/web dev",
+    "build": "pnpm --filter @repo/web build",
     "db:generate": "pnpm --filter @repo/db db:generate",
     "db:migrate": "pnpm --filter @repo/db db:migrate",
     "db:seed": "pnpm --filter @repo/db db:seed",

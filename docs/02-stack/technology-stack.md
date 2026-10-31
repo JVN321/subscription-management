@@ -1,6 +1,6 @@
 # Technology Stack Matrix & Integration Principles
 
-> **Status: Confirmed Technology Baseline**
+> **Status: Active Prototype & Confirmed Production Blueprint**
 >
 > Authoritative reference for core framework choices, tooling, responsibility boundaries, and integration principles.
 
@@ -8,30 +8,30 @@
 
 ## 1. Core Technology Matrix
 
-| Layer | Selected Technology | Primary Responsibility | Alternative Considered & Rejected |
-|---|---|---|---|
-| **Web Frontend** | **TanStack Start** | SSR, client routing, server actions, optimistic UI | Next.js (heavier vendor lock-in, unnecessary complexity for modular monolith) |
-| **Backend API** | **Hono** | Lightweight, typed HTTP API routing, middleware, OpenAPI integration | Express (dated, untyped), NestJS (heavyweight OOP boilerplate, violates Ponytail) |
-| **Primary Database** | **PostgreSQL 16** | Authoritative relational data store, ACID transactions, financial integrity | MySQL (weaker JSON/check constraints), MongoDB (unsuitable for financial transactions) |
-| **Database Toolkit / ORM** | **Drizzle ORM** | Type-safe SQL schema definitions, lightweight queries, migrations | Prisma (heavy binary engine, runtime overhead), TypeORM (fragile decorators) |
-| **Authentication & Identity** | **Better Auth** | Authentication, session cookies, password reset, role attributes | NextAuth/Auth.js (tight coupling to Next.js), Passport (dated callback patterns) |
-| **Background Processing** | **BullMQ** | Scheduled billing scans, PDF rendering, email dispatch | Celery/RabbitMQ (requires Python/extra daemon), temporal (excessive overhead) |
-| **Queue / Cache Store** | **Redis 7** | BullMQ queue state storage and disposable read caching | Memcached (no persistence or data structures), Kafka (over-engineered) |
-| **Boundary Validation** | **Zod** | Runtime schema validation for HTTP requests, env vars, and domain DTOs | Joi (untyped), Yup (weaker TypeScript inference) |
-| **API Contract & Docs** | **OpenAPI 3.1** via `@hono/zod-openapi` | Machine-readable API contracts and interactive Swagger/Scalar documentation | Manual Swagger YAML (prone to drift and synchronization errors) |
-| **Transactional Email** | **Resend** | Reliable delivery of invoice PDFs, quotes, and password reset links | Nodemailer (manual SMTP infrastructure maintenance) |
-| **PDF Generation Engine** | **PDFKit** | Server-side invoice and quotation PDF rendering | Puppeteer/Chromium (massive memory footprint, 1GB+ container bloat) |
-| **Observability** | **OpenTelemetry** | Distributed tracing, APM metrics, span instrumentation | Custom ad-hoc logging wrappers |
+| Layer | Selected Technology | Prototype Status | Primary Responsibility | Alternative Considered & Rejected |
+|---|---|:---:|---|---|
+| **Web Frontend** | **TanStack Start / React** | **Active** | Fast client routing, Deslopified Industrial UI, reactive state | Next.js (heavier vendor lock-in, unnecessary complexity) |
+| **Backend API** | **Hono** | **Active** | Lightweight typed HTTP API routing, middleware, OpenAPI integration | Express (dated, untyped), NestJS (heavyweight OOP boilerplate) |
+| **Primary Database** | **PostgreSQL 16** | **Active** | Authoritative relational data store, ACID transactions, `NUMERIC(14, 4)` | MySQL (weaker check constraints), MongoDB (unsuitable for finances) |
+| **Database Toolkit / ORM** | **Drizzle ORM** | **Active** | Type-safe SQL schema definitions, lightweight queries, migrations | Prisma (heavy binary engine), TypeORM (fragile decorators) |
+| **Authentication & Identity** | **Better Auth** | **Active** | Authentication, session cookies, role attributes (`admin`, `staff`, `customer`) | NextAuth/Auth.js (tight coupling to Next.js) |
+| **Recurring Billing Engine** | **In-Process Scheduler** | **Active** | Periodic automated billing runs with PostgreSQL advisory locks | Manual cron without concurrency safety |
+| **Distributed Background Jobs** | **BullMQ** | **Deferred** | Scale-out worker daemons for high-throughput distributed queues | Celery/RabbitMQ (extra daemon footprint), Temporal (excessive) |
+| **Queue / Cache Store** | **Redis 7** | **Deferred** | BullMQ queue state persistence and disposable read caching | Memcached (no persistence), Kafka (over-engineered) |
+| **Boundary Validation** | **Zod** | **Active** | Runtime schema validation for HTTP requests, env vars, and domain DTOs | Joi (untyped), Yup (weaker TypeScript inference) |
+| **PDF Generation Engine** | **PDFKit** | **Active** | Server-side invoice vector PDF rendering (`/api/v1/invoices/:id/pdf`) | Puppeteer/Chromium (1GB+ memory container bloat) |
+| **Transactional Email** | **Resend** | **Deferred** | Automated transactional PDF email delivery | In-app download and Mailpit local testing |
+| **Observability** | **OpenTelemetry** | **Deferred** | Distributed tracing and APM spans | Structured logging and query timing headers |
 
 ---
 
 ## 2. Integration Principles
 
 1. **Separation of Concerns**:
-   - `apps/web` communicates with `apps/api` strictly through validated HTTP endpoints and OpenAPI contracts. The frontend never imports database credentials or raw SQL query builders.
+   - `apps/web` communicates with `apps/api` strictly through validated HTTP endpoints. The frontend never imports database credentials or raw SQL query builders. Do not replace Hono with TanStack Start server functions.
 2. **PostgreSQL Remains Authoritative**:
-   - Redis data can be cleared or expired at any moment without causing data corruption or loss of financial history.
+   - All financial, customer, quote, subscription, invoice, and payment data resides in PostgreSQL. Zero floating-point arithmetic.
 3. **Zod at Every External Boundary**:
-   - All inbound HTTP request parameters, environment variables, and background job payloads must be parsed and verified through Zod before reaching domain code.
-4. **Provider Isolation**:
-   - External services like Resend (email) and PDFKit (PDF generation) are wrapped behind internal domain interfaces. Changing an email provider or PDF renderer will not affect domain or billing logic.
+   - All inbound HTTP request parameters, environment variables, and domain DTOs are parsed and verified through Zod.
+4. **Decoupled Billing Service**:
+   - `BillingService` in `@repo/domain` is pure and decoupled from the scheduler, allowing seamless transition from in-process scheduler to BullMQ workers without rewriting business logic.

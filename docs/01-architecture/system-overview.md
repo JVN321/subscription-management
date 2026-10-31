@@ -71,17 +71,21 @@ C4Container
 
 ---
 
-## 4. Architectural Tenets & Rules
+## 4. Active Prototype Runtime Model & Scale-Out Blueprint
 
-1. **Thin HTTP Route Handlers**:
-   - Handlers in `apps/api` must only validate inputs using Zod, verify authentication via Better Auth, call the appropriate application service in `packages/domain`, and format the HTTP response.
-   - Financial logic, tax rules, and subscription state changes must NEVER live inside route files.
-2. **Decoupled Asynchronous Execution**:
-   - Heavy, slow, or retry-prone operations (e.g. bulk billing generation, PDFKit document compilation, Resend email dispatch) must always be dispatched to BullMQ queues.
-   - User-facing API requests must return immediately upon enqueueing asynchronous work.
-3. **Cache Invalidation Safety**:
-   - Redis cache keys are ephemeral and rebuildable. If Redis is cleared, the system continues to operate correctly from PostgreSQL.
-   - Cache keys for multi-record aggregates must be invalidated inside the same application service that commits the mutation.
+To deliver rapid execution without premature infrastructure complexity (adhering to the Ponytail principle), the system operates across two documented stages:
+
+### 4.1 Active Prototype Runtime (Current)
+- **Frontend (`apps/web`)**: React / TanStack Start running on port `3000` with the Deslopified Industrial Precision Design Language.
+- **Backend API (`apps/api`)**: Dedicated Hono HTTP service on port `3001` with Better Auth and Zod validation.
+- **Automatic Billing Scheduler (`scheduler.ts`)**: In-process recurring scheduler triggering `BillingService.runBillingScan(todayStr)` periodically.
+- **Distributed Concurrency Lock**: PostgreSQL transaction-level advisory locks (`pg_try_advisory_xact_lock(89214)`) guaranteeing mutual exclusion without connection-pool lock leakage.
+- **PDF Engine (`pdf.ts`)**: Embedded vector PDF rendering via PDFKit serving streaming HTTP responses.
+
+### 4.2 Scale-Out Production Blueprint (Deferred)
+- **Decoupled Billing Service**: `BillingService` in `@repo/domain` is 100% independent of the transport layer and scheduler. When scaling to high-throughput clusters, BullMQ workers (`apps/worker`) invoke `BillingService.runBillingScan` without any business logic rewrites.
+- **Redis Queue Store**: Redis container (`brightloop_redis_dev` on port 6379) persists BullMQ job states under high volume.
+- **Email Delivery**: Automated transactional PDF dispatch via Resend.
 
 ---
 

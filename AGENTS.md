@@ -92,28 +92,103 @@ All local development and deployment instances run within Docker containers.
 
 ---
 
-## 6. UI Deslopify & Design Language Standards
+## 6. UI Deslopification Standard & Design Language
 
-1. **Anti-Slop & Zero Gradients**:
-   - **Never** use AI-slop gradients, glassmorphism blur traps, or rainbow backgrounds.
-   - Clean, modern, flat designs with sharp, subtle outlines (`border border-zinc-200 dark:border-zinc-800`).
-   - No heavy solid-color fills where clean outlines and subtle tints work better.
-2. **Authoritative Palette: Orange, White, Black**:
-   - Primary Accent: Precision Orange (`#f97316` / `#ea580c`).
-   - Light Theme: Crisp White / Zinc 50 (`#ffffff`, `#fafafa`), Dark Charcoal text (`#09090b`), Light Zinc borders (`#e4e4e7`).
-   - Dark Theme: Deep Pitch Black / Zinc 950 (`#09090b`, `#18181b`), High-contrast White text (`#fafafa`), Dark Zinc borders (`#27272a`).
-   - High contrast ratios (WCAG AAA compliant) in both modes.
-3. **Theme Switcher**:
-   - Always include a smooth, persistent Light/Dark theme switcher.
-   - Default to sleek modern Light theme.
-4. **Zero Emojis Policy**:
-   - **Never use emojis in the UI** (no 🚀, ⏱️, 🔔, ❌, 💰, etc.).
-   - Always use proper, professional icons from `lucide-react` (e.g. `<RefreshCw />`, `<CreditCard />`, `<FileText />`, `<Users />`, `<Package />`, `<ShieldCheck />`).
-5. **Shadcn Component Architecture**:
-   - Use standard shadcn component primitives (Button, Card, Badge, Input, Table, Tabs, Dialog, Dropdown, Separator).
-   - Do NOT invent bespoke UI widgets or ad-hoc complex components.
-6. **Reactive & Interactive**:
-   - Ensure the UI is reactive, updating instantly on user actions (e.g., immediate status reflections, real-time trigger feedback, quick filter changes).
+> **Purpose:** Keep the product interface deliberate, restrained, useful, and coherent. Remove visual noise, decorative UI, redundant information, fake system activity, and unnecessary interaction patterns.
+>
+> Apply this standard whenever creating, modifying, reviewing, or polishing UI in this project. It supplements the existing design language; it does not replace the color palette, component system, or product requirements.
+
+### 6.1 Core Principle
+**Every visible element must earn its place.**
+An element is justified when it helps the user understand information, make a decision, complete an action, understand a real system state, or navigate the application. If it does none of these, remove it.
+
+Prefer:
+- Clear hierarchy over decoration.
+- Useful information over visual activity.
+- Consistency over novelty.
+- Calm, stable interfaces over animated interfaces.
+- Specific labels over vague status language.
+- One clear representation over repeated representations.
+
+Do not add elements simply to make a page look more populated, modern, technical, or impressive.
+
+### 6.2 Strictly Prohibited Visual Patterns
+1. **No Flashing, Pulsing, or Attention-Seeking Decoration**:
+   - Never use decorative pulsing dots, flashing indicators, breathing or glowing circles, animated rings, blinking badges, bouncing icons, shimmering/moving borders, or fake live indicators.
+   - Do not use CSS animations such as `pulse`, `ping`, `blink`, or infinite glow effects for ordinary UI decoration.
+   - *Exception:* Motion or an indicator may be used only when it communicates a real, user-relevant state that cannot be communicated as clearly with a static treatment. Prefer a static label or icon, and respect `prefers-reduced-motion`.
+2. **No Fake System-Status Language**:
+   - Do not invent operational statuses or technical labels to make a business application look like a control room (e.g., "Engine online", "System operational", "All systems nominal", "Core active", "Network stable", "Sync engine running", "Live monitoring enabled", "Lock: Advisory Safe", "Live stream").
+   - Only display infrastructure or operational health information when the application actually measures that state, the information is relevant to the current user, and the user can make a decision or take action based on it. A subscription-management dashboard is a business tool, not a spacecraft dashboard.
+3. **No Decorative Counters or Meaningless Metrics**:
+   - Do not invent random percentages, fake uptime, fake activity counts, arbitrary performance scores, decorative progress bars, unexplained numerical indicators, or metrics that do not map to a real business concept. Every metric must have a clear definition, a real data source, and a reason to be displayed.
+
+### 6.3 Remove Redundant Information
+- Do not communicate the same information multiple times in the same visual region (e.g. repeating names across headers and cards, showing "Active" badge next to a status column, repeating timestamps everywhere).
+- Use the shortest label that remains unambiguous.
+
+### 6.4 Avoid Generic Dashboard Filler
+- Avoid "Welcome back" banners, decorative hero sections, generic motivational messages, empty activity feeds with placeholder events, and unhelpful "quick insights".
+- Useful information includes: active subscriptions, MRR / period revenue, outstanding invoice balances, overdue invoices, upcoming renewals, recent payments, and billing failures requiring attention. Never fabricate data to fill a layout.
+
+### 6.5 Use Status Indicators Sparingly and Accurately
+- Status badges are for meaningful state, not decoration (Draft, Pending, Active, Paused, Closed, Overdue, Paid, Failed).
+- Use the same status vocabulary throughout the application.
+- Use color only when it adds meaning. Do not give every badge a different bright color or place decorative dots inside every badge.
+- Use neutral styling by default. Reserve stronger emphasis for genuinely important states such as overdue invoices or failed payments.
+
+### 6.6 Buttons and Actions
+- Buttons must represent real actions.
+- Do not add buttons solely for visual balance or provide multiple buttons for the same action.
+- Action hierarchy: 1 primary action per context; secondary actions as understated buttons; destructive actions distinct but not alarmist; contextual actions in menus.
+- Never use pulsing, glowing, flashing, or bouncing treatments.
+
+### 6.7 Icons and Decorative Shapes
+- Use icons from `lucide-react` to improve recognition or reduce label length, not as decoration.
+- Never use emojis in the UI (no 🚀, ⏱️, 🔔, ❌, 💰, etc.).
+- Avoid arbitrary circles, dots, rings, sparkles, crosses, and geometric ornaments.
+
+### 6.8 Cards, Panels, and Borders
+- Do not put every element inside a card. Use layout, spacing, alignment, and subtle separators before adding containers.
+- Avoid nested cards, heavy borders, and large drop shadows.
+- Use tables for structured records, not grids of cards pretending to be tables.
+
+### 6.9 Tables and Information Density
+- Keep column labels concise. Right-align numerical and monetary columns.
+- Use consistent date and currency formatting. Use subtle separators rather than heavy grid lines.
+
+### 6.10 Charts and Data Visualization
+- A chart must answer a real question with defined data and time range. Prefer a clear table or single metric when it communicates information better.
+
+### 6.11 Motion and Interaction
+- Motion should clarify cause and effect, not attract attention. Avoid infinite animations or spring/bounce effects. Respect reduced-motion preferences.
+
+### 6.12 Empty, Loading, and Error States
+- Be honest and useful. Explain what is missing or failed in plain language with a recovery action. Never expose stack traces to ordinary users.
+
+### 6.13 Content and Microcopy
+- Write interface text as a product tool, not marketing copy. Avoid hype ("Your financial command center", "Powering your journey").
+
+### 6.14 Accessibility is Not Optional
+- Maintain readable contrast (WCAG AAA), keyboard navigation, visible focus states, and semantic controls.
+
+### 6.15 Shadcn/UI Architecture & Color Palette
+- Use standard shadcn component primitives (Button, Card, Badge, Input, Table, Tabs, Dialog, Dropdown, Separator).
+- **Authoritative Palette: Orange, White, Black**:
+  - Primary Accent: Precision Orange (`#FF6B00`).
+  - Light Theme: Crisp White / Neutral 50 (`#FFFFFF`, `#F8F8F9`), Dark text (`#09090B`), Subtle borders (`#E5E5E5`).
+  - Dark Theme: Deep Pitch Black (`#09090B`, `#121214`), White text (`#FAFAFA`), Dark borders (`#27272A`).
+  - Include a sleek light/dark theme switcher.
+
+### 6.16 Required Review Before Calling a UI Finished
+- **Necessity**: Does every visible element serve a user task or communicate useful information?
+- **Honesty**: Are all metrics and statuses backed by real data?
+- **Restraint**: Are there flashing, pulsing, glowing, or bouncing elements?
+- **Consistency**: Do spacing, typography, controls, tables, and statuses follow shared patterns?
+- **Usability**: Is the primary action obvious? Can users scan the page quickly?
+
+### 6.17 Agent Instruction
+When asked to create or redesign UI, apply this standard proactively. Do not wait for the user to point out visual clutter. Prefer removing unnecessary elements over adding new ones. The goal is not to make the UI empty. The goal is to make every element intentional.
 
 ---
 
